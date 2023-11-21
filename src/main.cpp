@@ -25,7 +25,6 @@ int main()
     Tree newTree = {};
 
     newTree.Read("tree.txt");
-    newTree.CountNodes();
 
     newTree.Dump();
 
