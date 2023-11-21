@@ -13,6 +13,28 @@ ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile);
 
 ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile);
 
+#define ERR_DUMP_RET(tree)                              \
+do                                                      \
+{                                                       \
+    ErrorCode _verifyError = tree->Verify();            \
+    if (_verifyError)                                   \
+    {                                                   \
+        tree->Dump();                                   \
+        return _verifyError;                            \
+    }                                                   \
+} while (0);
+
+#define ERR_DUMP_RET_RESULT(tree, poison)               \
+do                                                      \
+{                                                       \
+    ErrorCode _verifyError = tree->Verify();            \
+    if (_verifyError)                                   \
+    {                                                   \
+        tree->Dump();                                   \
+        return { poison, _verifyError };                \
+    }                                                   \
+} while (0);
+
 TreeNodeResult TreeNode::NewNode(TreeElement_t value, TreeNode* left, TreeNode* right)
 {
     TreeNode* node = (TreeNode*)calloc(1, sizeof(TreeNode));
@@ -63,6 +85,7 @@ ErrorCode Tree::Init()
 
 ErrorCode Tree::Destructor()
 {
+    ERR_DUMP_RET(this);
     return this->root->DeleteNode();
 }
 
@@ -121,6 +144,8 @@ TreeNodeCountResult _recCountNodes(TreeNode* node)
 
 ErrorCode Tree::Dump()
 {
+    RETURN_ERROR(this->Verify());
+
     char outGraphPath[MAX_PATH_LENGTH] = "";
     sprintf(outGraphPath, "%s/Iteration%zu.dot", DOT_FOLDER, DUMP_ITERATION);
 

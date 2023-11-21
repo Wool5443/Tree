@@ -43,6 +43,8 @@ struct Tree
     TreeNodeCountResult CountNodes();
 
     ErrorCode Dump();
+
+    ErrorCode Print();
 };
 
 #endif
