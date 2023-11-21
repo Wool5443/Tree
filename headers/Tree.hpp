@@ -11,6 +11,7 @@
  */
 static const char* DOT_FOLDER = "log/dot";
 static const char* IMG_FOLDER = "log/img";
+static const char* HTML_FILE_PATH = "log.html";
 
 struct TreeNodeResult;
 /** @struct TreeNode
@@ -104,6 +105,9 @@ struct Tree
      * @return Error
      */
     ErrorCode Dump();
+
+    static ErrorCode StartHtmlLogging();
+    static ErrorCode EndHtmlLogging();
 
     /**
      * @brief Saves the tree in pre-order

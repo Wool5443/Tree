@@ -3,5 +3,6 @@
 *.dot
 *.png
 *.txt
+*.html
 Docs/*
 main

@@ -9,6 +9,8 @@ static size_t DUMP_ITERATION = 0;
 static const size_t MAX_PATH_LENGTH = 128;
 static const size_t MAX_COMMAND_LENGTH = 256;
 
+static FILE* HTML_FILE = NULL;
+
 struct _TreeNodeCountResult
 {
     size_t value;
@@ -152,7 +154,18 @@ _TreeNodeCountResult _recCountNodes(TreeNode* node)
 
 ErrorCode Tree::Dump()
 {
-    RETURN_ERROR(this->Verify());
+    MyAssertSoft(this->root, ERROR_NO_ROOT);
+
+    if (HTML_FILE)
+        fprintf(HTML_FILE, 
+        "<h1>Iteration %zu</h1>\n"
+        "<style>\n"
+        ".content {\n"
+        "max-width: 500px;\n"
+        "margin: auto;\n"
+        "}\n"
+        "</style>,\n",
+        DUMP_ITERATION);
 
     char outGraphPath[MAX_PATH_LENGTH] = "";
     sprintf(outGraphPath, "%s/Iteration%zu.dot", DOT_FOLDER, DUMP_ITERATION);
@@ -169,7 +182,8 @@ ErrorCode Tree::Dump()
     );
 
     fprintf(outGraphFile, "TREE[rank = \"min\", style = \"filled\", fillcolor = " TREE_COLOR ", "
-                          "label = \"{Tree|Size: %zu|<root>Root}\"];", this->size);
+                          "label = \"{Tree|Error: %s|Size: %zu|<root>Root}\"];", ERROR_CODE_NAMES[this->Verify()],
+                                                                                 this->size);
 
     fprintf(outGraphFile, "NODE_%zu[style = \"filled\", fillcolor = " NODE_COLOR ", ",
                            this->root->id);
@@ -191,6 +205,9 @@ ErrorCode Tree::Dump()
     char command[MAX_COMMAND_LENGTH] = "";
     sprintf(command, "dot %s -T png -o %s/Iteration%zu.png", outGraphPath, IMG_FOLDER, DUMP_ITERATION);
     system(command);
+
+    if (HTML_FILE)
+        fprintf(HTML_FILE, "<img src = \"%s/Iteration%zu.png\"/>\n", IMG_FOLDER, DUMP_ITERATION);
 
     DUMP_ITERATION++;
 
@@ -323,6 +340,37 @@ TreeNodeResult _recReadOpenBracket(Text* input, char* tokenText, const char* ope
         return { nullptr, ERROR_SYNTAX };
     
     return nodeRes;
+}
+
+ErrorCode Tree::StartHtmlLogging()
+{
+    HTML_FILE = fopen(HTML_FILE_PATH, "w");
+    MyAssertSoft(HTML_FILE, ERROR_BAD_FILE);
+
+    fprintf(HTML_FILE, 
+        "<style>\n"
+        ".content {\n"
+        "max-width: 500px;\n"
+        "margin: auto;\n"
+        "}\n"
+        "</style>,\n"
+        "<body>\n"
+        "<div class=\"content\">");
+
+    return EVERYTHING_FINE;
+}
+
+ErrorCode Tree::EndHtmlLogging()
+{
+    if (HTML_FILE)
+    {
+        fprintf(HTML_FILE, "</div>\n</body>\n");
+        fclose(HTML_FILE);
+    }
+    HTML_FILE = NULL;
+
+
+    return EVERYTHING_FINE;
 }
 
 #undef FONT_SIZE

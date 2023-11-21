@@ -2,6 +2,8 @@
 
 int main()
 {
+    Tree::StartHtmlLogging();
+
     Tree tree = {};
     tree.Init(TreeNode::New(0, nullptr, nullptr).value);
 
@@ -26,11 +28,15 @@ int main()
 
     newTree.Read("tree.txt");
 
+    newTree.size = 1;
+
     newTree.Dump();
 
     newTree.Print("newTree.txt");
 
     newTree.Destructor();
+
+    Tree::EndHtmlLogging();
 
     return 0;
 }
