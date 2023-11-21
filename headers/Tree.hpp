@@ -44,7 +44,8 @@ struct Tree
 
     ErrorCode Dump();
 
-    ErrorCode Print();
+    ErrorCode Print(const char* outPath);
+    ErrorCode Read(const char* inPath);
 };
 
 #endif

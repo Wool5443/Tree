@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "Tree.hpp"
+#include "OneginFunctions.hpp"
 
 static size_t CURRENT_ID = 0;
 static size_t DUMP_ITERATION = 0;
@@ -12,6 +13,8 @@ TreeNodeCountResult _recCountNodes(TreeNode* node);
 ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile);
 
 ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile);
+
+ErrorCode _recPrint(TreeNode* node, FILE* outFile);
 
 #define ERR_DUMP_RET(tree)                              \
 do                                                      \
@@ -214,6 +217,41 @@ ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile)
 
     RETURN_ERROR(_recDrawGraph(node->left, outGraphFile));
     return _recDrawGraph(node->right, outGraphFile);
+}
+
+ErrorCode Tree::Print(const char* outPath)
+{
+    MyAssertSoft(outPath, ERROR_NULLPTR);
+    ERR_DUMP_RET(this);
+
+    FILE* outFile = fopen(outPath, "w");
+    MyAssertSoft(outFile, ERROR_BAD_FILE);
+
+    return _recPrint(this->root, outFile);
+}
+
+ErrorCode _recPrint(TreeNode* node, FILE* outFile)
+{
+    if (!node)
+    {
+        fprintf(outFile, "nil ");
+        return EVERYTHING_FINE;
+    }
+
+    fprintf(outFile, "( " TREE_ELEMENT_SPECIFIER " ", node->value);
+    RETURN_ERROR(_recPrint(node->left, outFile));
+    RETURN_ERROR(_recPrint(node->right, outFile));
+    fprintf(outFile, ") ");
+
+    return EVERYTHING_FINE;
+}
+
+ErrorCode Tree::Read(const char* inPath)
+{
+    MyAssertSoft(inPath, ERROR_NULLPTR);
+    ERR_DUMP_RET(this);
+
+    Text input = CreateText(inPath, ' ');
 }
 
 #undef FONT_SIZE
