@@ -15,7 +15,7 @@ struct TreeNode
     TreeNode* right;
     size_t id;
 
-    static TreeNodeResult NewNode(TreeElement_t value, TreeNode* left, TreeNode* right);
+    static TreeNodeResult New(TreeElement_t value, TreeNode* left, TreeNode* right);
     ErrorCode DeleteNode();
     TreeNodeResult Copy();
 };
@@ -36,7 +36,7 @@ struct Tree
     TreeNode* root;
     size_t size;
 
-    ErrorCode Init();
+    ErrorCode Init(TreeNode* root);
     ErrorCode Destructor();
     ErrorCode Verify();
     

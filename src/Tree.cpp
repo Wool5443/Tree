@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include "string.h"
 #include "Tree.hpp"
 #include "OneginFunctions.hpp"
 
@@ -15,6 +16,10 @@ ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile);
 ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile);
 
 ErrorCode _recPrint(TreeNode* node, FILE* outFile);
+
+TreeNodeResult _recRead(Text* input, size_t* tokenNum);
+
+TreeNodeResult _recReadOpenBracket(Text* input, char* tokenText, const char* openBracket, size_t* tokenNum);
 
 #define ERR_DUMP_RET(tree)                              \
 do                                                      \
@@ -38,7 +43,7 @@ do                                                      \
     }                                                   \
 } while (0);
 
-TreeNodeResult TreeNode::NewNode(TreeElement_t value, TreeNode* left, TreeNode* right)
+TreeNodeResult TreeNode::New(TreeElement_t value, TreeNode* left, TreeNode* right)
 {
     TreeNode* node = (TreeNode*)calloc(1, sizeof(TreeNode));
     if (!node)
@@ -70,15 +75,12 @@ ErrorCode TreeNode::DeleteNode()
 
 TreeNodeResult TreeNode::Copy()
 {
-    return TreeNode::NewNode(this->value, this->left, this->right);
+    return TreeNode::New(this->value, this->left, this->right);
 }
 
-ErrorCode Tree::Init()
+ErrorCode Tree::Init(TreeNode* root)
 {
-    TreeNodeResult rootRes = TreeNode::NewNode(TREE_POISON, nullptr, nullptr);
-    RETURN_ERROR(rootRes.error);
-
-    TreeNode* root = rootRes.value;
+    MyAssertSoft(root, ERROR_NULLPTR);
 
     this->root = root;
     this->size = 1;
@@ -187,6 +189,8 @@ ErrorCode Tree::Dump()
     sprintf(command, "dot %s -T png -o %s/Iteration%zu.png", outGraphPath, IMG_FOLDER, DUMP_ITERATION);
     system(command);
 
+    DUMP_ITERATION++;
+
     return EVERYTHING_FINE;
 }
 
@@ -227,7 +231,11 @@ ErrorCode Tree::Print(const char* outPath)
     FILE* outFile = fopen(outPath, "w");
     MyAssertSoft(outFile, ERROR_BAD_FILE);
 
-    return _recPrint(this->root, outFile);
+    RETURN_ERROR(_recPrint(this->root, outFile));
+
+    fclose(outFile);
+
+    return EVERYTHING_FINE;
 }
 
 ErrorCode _recPrint(TreeNode* node, FILE* outFile)
@@ -249,9 +257,72 @@ ErrorCode _recPrint(TreeNode* node, FILE* outFile)
 ErrorCode Tree::Read(const char* inPath)
 {
     MyAssertSoft(inPath, ERROR_NULLPTR);
-    ERR_DUMP_RET(this);
 
     Text input = CreateText(inPath, ' ');
+
+    size_t tokenNum = 0;
+
+    TreeNodeResult rootRes = _recRead(&input, &tokenNum);
+    RETURN_ERROR(rootRes.error);
+
+    this->root = rootRes.value;
+    this->CountNodes();
+
+    return EVERYTHING_FINE;
+}
+
+TreeNodeResult _recRead(Text* input, size_t* tokenNum)
+{
+    MyAssertSoftResult(*tokenNum < input->numberOfTokens, NULL, ERROR_INDEX_OUT_OF_BOUNDS);
+
+    const String* token = &input->tokens[(*tokenNum)++];
+    char* tokenText = (char*)token->text;
+    tokenText[token->length] = '\0';
+
+    const char* openBracket = strchr(tokenText, '(');
+    if (openBracket)
+        return _recReadOpenBracket(input, tokenText, openBracket, tokenNum);
+
+    const char* nil = strstr(tokenText, "nil");
+    if (nil)
+        return { nullptr, EVERYTHING_FINE };
+    return { nullptr, ERROR_SYNTAX };
+}
+
+TreeNodeResult _recReadOpenBracket(Text* input, char* tokenText, const char* openBracket, size_t* tokenNum)
+{
+    if (!StringIsEmptyChars(tokenText, '(') || !StringIsEmptyChars(openBracket + 1, '\0'))
+        return { nullptr, ERROR_SYNTAX };
+
+    const String* token = &input->tokens[(*tokenNum)++];
+    tokenText = (char*)token->text;
+    tokenText[token->length] = '\0';
+
+    TreeElement_t value = TREE_POISON;
+    int readChars = 0;
+
+    if (sscanf(tokenText, TREE_ELEMENT_SPECIFIER "%n", &value, &readChars) != 1 ||
+        !StringIsEmptyChars(tokenText + readChars, '\0'))
+        return { nullptr, ERROR_SYNTAX };
+    
+    TreeNodeResult leftRes = _recRead(input, tokenNum);
+    RETURN_ERROR_RESULT(leftRes, nullptr);
+
+    TreeNodeResult rightRes = _recRead(input, tokenNum);
+    RETURN_ERROR_RESULT(rightRes, nullptr);
+
+    TreeNodeResult nodeRes = TreeNode::New(value, leftRes.value, rightRes.value);
+    RETURN_ERROR_RESULT(nodeRes, nullptr);
+
+    token = &input->tokens[(*tokenNum)++];
+    tokenText = (char*)token->text;
+    tokenText[token->length] = '\0';
+
+    const char* closeBracket = strchr(tokenText, ')');
+    if (!closeBracket)
+        return { nullptr, ERROR_SYNTAX };
+    
+    return nodeRes;
 }
 
 #undef FONT_SIZE
