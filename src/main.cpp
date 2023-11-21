@@ -14,7 +14,7 @@ int main()
     tree.root->left = TreeNode::New(5, nullptr, nullptr).value;
     tree.root->right = TreeNode::New(15, TreeNode::New(12, nullptr, nullptr).value, TreeNode::New(20, nullptr, nullptr).value).value;
 
-    tree.CountNodes();
+    tree.UpdateTree();
 
     tree.Dump();
 

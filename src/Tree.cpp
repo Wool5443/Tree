@@ -9,7 +9,13 @@ static size_t DUMP_ITERATION = 0;
 static const size_t MAX_PATH_LENGTH = 128;
 static const size_t MAX_COMMAND_LENGTH = 256;
 
-TreeNodeCountResult _recCountNodes(TreeNode* node);
+struct _TreeNodeCountResult
+{
+    size_t value;
+    ErrorCode error;
+};
+
+_TreeNodeCountResult _recCountNodes(TreeNode* node);
 
 ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile);
 
@@ -83,9 +89,7 @@ ErrorCode Tree::Init(TreeNode* root)
     MyAssertSoft(root, ERROR_NULLPTR);
 
     this->root = root;
-    this->size = 1;
-
-    return EVERYTHING_FINE;
+    return this->UpdateTree();
 }
 
 ErrorCode Tree::Destructor()
@@ -100,32 +104,31 @@ ErrorCode Tree::Verify()
         return ERROR_NO_ROOT;
 
     size_t oldSize = this->size;
-    TreeNodeCountResult countResult = this->CountNodes();
-    RETURN_ERROR(countResult.error);
+    RETURN_ERROR(this->UpdateTree());
 
-    if (countResult.value != oldSize)
+    if (this->size != oldSize)
         return ERROR_BAD_TREE;
 
     return EVERYTHING_FINE;
 }
 
-TreeNodeCountResult Tree::CountNodes()
+ErrorCode Tree::UpdateTree()
 {
-    TreeNodeCountResult countResult = _recCountNodes(this->root);
-    RETURN_ERROR_RESULT(countResult, SIZET_POISON);
+    _TreeNodeCountResult countResult = _recCountNodes(this->root);
+    RETURN_ERROR(countResult.error);
 
     this->size = countResult.value;
-    return countResult;
+    return EVERYTHING_FINE;
 }
 
-TreeNodeCountResult _recCountNodes(TreeNode* node)
+_TreeNodeCountResult _recCountNodes(TreeNode* node)
 {
     if (!node)
         return { 0, EVERYTHING_FINE };
 
     size_t count = 1;
 
-    TreeNodeCountResult result = _recCountNodes(node->left);
+    _TreeNodeCountResult result = _recCountNodes(node->left);
     RETURN_ERROR_RESULT(result, SIZET_POISON);
 
     count += result.value;
@@ -265,10 +268,7 @@ ErrorCode Tree::Read(const char* inPath)
     TreeNodeResult rootRes = _recRead(&input, &tokenNum);
     RETURN_ERROR(rootRes.error);
 
-    this->root = rootRes.value;
-    this->CountNodes();
-
-    return EVERYTHING_FINE;
+    return this->Init(rootRes.value);
 }
 
 TreeNodeResult _recRead(Text* input, size_t* tokenNum)
