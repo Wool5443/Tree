@@ -1,0 +1,5 @@
+*.json
+*.o
+*.dot
+*.png
+main
