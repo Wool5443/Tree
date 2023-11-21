@@ -4,8 +4,8 @@
 #include "Utils.hpp"
 #include "TreeSettings.ini"
 
-const char* DOT_FOLDER = "log/dot";
-const char* IMG_FOLDER = "log/img";
+static const char* DOT_FOLDER = "log/dot";
+static const char* IMG_FOLDER = "log/img";
 
 struct TreeNodeResult;
 struct TreeNode

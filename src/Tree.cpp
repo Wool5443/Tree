@@ -4,7 +4,8 @@
 static size_t CURRENT_ID = 0;
 static size_t DUMP_ITERATION = 0;
 
-static const size_t MAX_PATH_LENGTH = 256;
+static const size_t MAX_PATH_LENGTH = 128;
+static const size_t MAX_COMMAND_LENGTH = 256;
 
 TreeNodeCountResult _recCountNodes(TreeNode* node);
 
@@ -112,6 +113,7 @@ TreeNodeCountResult _recCountNodes(TreeNode* node)
 #define FONT_SIZE "10"
 #define FONT_NAME "\"Fira Code Bold\""
 #define BACK_GROUND_COLOR "\"#de97d4\""
+#define TREE_COLOR "\"#ff7be9\""
 #define NODE_COLOR "\"#fae1f6\""
 #define NODE_FRAME_COLOR "\"#000000\""
 #define ROOT_COLOR "\"#c95b90\""
@@ -119,8 +121,8 @@ TreeNodeCountResult _recCountNodes(TreeNode* node)
 
 ErrorCode Tree::Dump()
 {
-    char outGraphPath[] = "";
-    sprintf(outGraphPath, "%s/Iteration %zu", DOT_FOLDER, DUMP_ITERATION);
+    char outGraphPath[MAX_PATH_LENGTH] = "";
+    sprintf(outGraphPath, "%s/Iteration%zu.dot", DOT_FOLDER, DUMP_ITERATION);
 
     FILE* outGraphFile = fopen(outGraphPath, "w");
     MyAssertSoft(outGraphFile, ERROR_BAD_FILE);
@@ -133,21 +135,29 @@ ErrorCode Tree::Dump()
     "bgcolor = " BACK_GROUND_COLOR ";\n"
     );
 
-    fprintf(outGraphFile, "NODE_%zu[rank = \"min\", style = \"filled\", fillcolor = " NODE_COLOR ", ",
+    fprintf(outGraphFile, "TREE[rank = \"min\", style = \"filled\", fillcolor = " TREE_COLOR ", "
+                          "label = \"{Tree|Size: %zu|<root>Root}\"];", this->size);
+
+    fprintf(outGraphFile, "NODE_%zu[style = \"filled\", fillcolor = " NODE_COLOR ", ",
                            this->root->id);
     if (this->root->value == TREE_POISON)
-        fprintf(outGraphFile, "label = \"{Value:\\nPOISON|{Left|Right}}\"];\n");
+        fprintf(outGraphFile, "label = \"{Value:\\nPOISON|{<left>Left|<right>Right}}\"];\n");
     else
-        fprintf(outGraphFile, "label = \"{Value:\\n" TREE_ELEMENT_SPECIFIER "|{Left|Right}}\"];\n", this->root->value);
+        fprintf(outGraphFile, "label = \"{Value:\\n" TREE_ELEMENT_SPECIFIER "|{<left>Left|<right>Right}}\"];\n", this->root->value);
 
     RETURN_ERROR(_recBuildCellTemplatesGraph(this->root->left, outGraphFile));
     RETURN_ERROR(_recBuildCellTemplatesGraph(this->root->right, outGraphFile));
 
     RETURN_ERROR(_recDrawGraph(this->root, outGraphFile));
+    fprintf(outGraphFile, "\n");
+    fprintf(outGraphFile, "TREE:root->NODE_%zu\n", this->root->id);
 
-    fprintf(outGraphFile, "\n}\n");
-
+    fprintf(outGraphFile, "}\n");
     fclose(outGraphFile);
+
+    char command[MAX_COMMAND_LENGTH] = "";
+    sprintf(command, "dot %s -T png -o %s/Iteration%zu.png", outGraphPath, IMG_FOLDER, DUMP_ITERATION);
+    system(command);
 
     return EVERYTHING_FINE;
 }
@@ -159,9 +169,9 @@ ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile)
 
     fprintf(outGraphFile, "NODE_%zu[style = \"filled\", fillcolor = " NODE_COLOR ", ", node->id);
     if (node->value == TREE_POISON)
-        fprintf(outGraphFile, "label = \"{Value:\\nPOISON|{Left|Right}}\"];\n");
+        fprintf(outGraphFile, "label = \"{Value:\\nPOISON|{<left>Left|<right>Right}}\"];\n");
     else
-        fprintf(outGraphFile, "label = \"{Value:\\n" TREE_ELEMENT_SPECIFIER "|{Left|Right}}\"];\n", node->value);
+        fprintf(outGraphFile, "label = \"{Value:\\n" TREE_ELEMENT_SPECIFIER "|{<left>Left|<right>Right}}\"];\n", node->value);
     
     RETURN_ERROR(_recBuildCellTemplatesGraph(node->left, outGraphFile));
     return _recBuildCellTemplatesGraph(node->right, outGraphFile);
@@ -173,9 +183,9 @@ ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile)
         return EVERYTHING_FINE;
 
     if (node->left)
-        fprintf(outGraphFile, "NODE_%zu->NODE_%zu;\n", node->id, node->left->id);
+        fprintf(outGraphFile, "NODE_%zu:left->NODE_%zu;\n", node->id, node->left->id);
     if (node->right)
-        fprintf(outGraphFile, "NODE_%zu->NODE_%zu;\n", node->id, node->right->id);
+        fprintf(outGraphFile, "NODE_%zu:right->NODE_%zu;\n", node->id, node->right->id);
 
     RETURN_ERROR(_recDrawGraph(node->left, outGraphFile));
     return _recDrawGraph(node->right, outGraphFile);
