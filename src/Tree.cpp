@@ -3,7 +3,9 @@
 #include "Tree.hpp"
 #include "OneginFunctions.hpp"
 
-static size_t CURRENT_ID = 0;
+static size_t CURRENT_ID = 1;
+static const size_t BAD_ID = 0;
+
 static size_t DUMP_ITERATION = 0;
 
 static const size_t MAX_PATH_LENGTH = 128;
@@ -17,17 +19,19 @@ struct _TreeNodeCountResult
     ErrorCode error;
 };
 
-_TreeNodeCountResult _recCountNodes(TreeNode* node);
+static TreeNodeResult _recCopy(TreeNode* node);
 
-ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile);
+static _TreeNodeCountResult _recCountNodes(TreeNode* node);
 
-ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile);
+static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile);
 
-ErrorCode _recPrint(TreeNode* node, FILE* outFile);
+static ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile);
 
-TreeNodeResult _recRead(Text* input, size_t* tokenNum);
+static ErrorCode _recPrint(TreeNode* node, FILE* outFile);
 
-TreeNodeResult _recReadOpenBracket(Text* input, char* tokenText, const char* openBracket, size_t* tokenNum);
+static TreeNodeResult _recRead(Text* input, size_t* tokenNum);
+
+static TreeNodeResult _recReadOpenBracket(Text* input, char* tokenText, const char* openBracket, size_t* tokenNum);
 
 #define ERR_DUMP_RET(tree)                              \
 do                                                      \
@@ -58,23 +62,43 @@ TreeNodeResult TreeNode::New(TreeElement_t value, TreeNode* left, TreeNode* righ
         return { NULL, ERROR_NO_MEMORY };
 
     node->value = value;
-    node->left  = left;
+
+    if (left)
+        left->parent = node;
+    node->left = left;
+
+    if (right)
+        right->parent = node;
     node->right = right;
-    node->id    = CURRENT_ID++;
+
+    node->id = CURRENT_ID++;
 
     return { node, EVERYTHING_FINE };
 }
 
-ErrorCode TreeNode::DeleteNode()
+ErrorCode TreeNode::Delete()
 {
+    SetConsoleColor(stderr, COLOR_YELLOW);
+    fprintf(stderr, "Deleting node id:%zu, value:%lg\n", this->id, this->value);
+    fprintf(stderr, "Left is %p, right is %p\n\n", this->left, this->right);
+    SetConsoleColor(stderr, COLOR_WHITE);
+
+    if (this->id == BAD_ID)
+        return EVERYTHING_FINE;
     if (this->left)
-        RETURN_ERROR(this->left->DeleteNode());
+        RETURN_ERROR(this->left->Delete());
     if (this->right)
-        RETURN_ERROR(this->right->DeleteNode());
+        RETURN_ERROR(this->right->Delete());
+
+    SetConsoleColor(stderr, COLOR_YELLOW);
+    fprintf(stderr, "Ending the deletion of node id:%zu, value:%lg\n", this->id, this->value);
+    fprintf(stderr, "Left is %p, right is %p\n\n", this->left, this->right);
+    SetConsoleColor(stderr, COLOR_WHITE);
 
     this->value = TREE_POISON;
-    this->left = nullptr;
+    this->left  = nullptr;
     this->right = nullptr;
+    this->id    = BAD_ID;
 
     free(this);
 
@@ -84,6 +108,32 @@ ErrorCode TreeNode::DeleteNode()
 TreeNodeResult TreeNode::Copy()
 {
     return TreeNode::New(this->value, this->left, this->right);
+}
+
+static TreeNodeResult _recCopy(TreeNode* node)
+{
+    if (!node)
+        return { nullptr, EVERYTHING_FINE };
+
+    TreeNodeResult leftChild = _recCopy(node->left);
+    RETURN_ERROR_RESULT(leftChild, nullptr);
+
+    TreeNodeResult rightChild = _recCopy(node->right);
+    if (rightChild.error)
+    {
+        leftChild.value->Delete();
+        return { nullptr, rightChild.error };
+    }
+
+    TreeNodeResult copy = TreeNode::New(node->value, leftChild.value, rightChild.value);
+
+    if (!copy.error)
+        return copy;
+
+    leftChild.value->Delete();
+    rightChild.value->Delete();
+
+    return { nullptr, copy.error };
 }
 
 ErrorCode Tree::Init(TreeNode* root)
@@ -97,7 +147,7 @@ ErrorCode Tree::Init(TreeNode* root)
 ErrorCode Tree::Destructor()
 {
     ERR_DUMP_RET(this);
-    return this->root->DeleteNode();
+    return this->root->Delete();
 }
 
 ErrorCode Tree::Verify()
@@ -123,22 +173,38 @@ ErrorCode Tree::UpdateTree()
     return EVERYTHING_FINE;
 }
 
-_TreeNodeCountResult _recCountNodes(TreeNode* node)
+static _TreeNodeCountResult _recCountNodes(TreeNode* node)
 {
-    if (!node)
-        return { 0, EVERYTHING_FINE };
+    if (node->id == BAD_ID)
+        return { SIZET_POISON, ERROR_TREE_LOOP };
+
+    size_t oldId = node->id;
+    node->id = 0;
 
     size_t count = 1;
 
-    _TreeNodeCountResult result = _recCountNodes(node->left);
-    RETURN_ERROR_RESULT(result, SIZET_POISON);
+    _TreeNodeCountResult countResult = {};
 
-    count += result.value;
+    if (node->left)
+    {
+        if (node->left->parent != node)
+            return { SIZET_POISON, ERROR_TREE_LOOP };
+        countResult = _recCountNodes(node->left);
+        RETURN_ERROR_RESULT(countResult, SIZET_POISON);
+    }
 
-    result = _recCountNodes(node->right);
-    RETURN_ERROR_RESULT(result, SIZET_POISON);
+    count += countResult.value;
 
-    count += result.value;
+    if (node->right)
+    {
+        if (node->right->parent != node)
+            return { SIZET_POISON, ERROR_TREE_LOOP };
+        countResult = _recCountNodes(node->right);
+        RETURN_ERROR_RESULT(countResult, SIZET_POISON);
+    }
+
+    count += countResult.value;
+    node->id = oldId;
 
     return { count, EVERYTHING_FINE };
 }
@@ -155,6 +221,8 @@ _TreeNodeCountResult _recCountNodes(TreeNode* node)
 ErrorCode Tree::Dump()
 {
     MyAssertSoft(this->root, ERROR_NO_ROOT);
+    if (this->Verify() == ERROR_TREE_LOOP)
+        return ERROR_TREE_LOOP;
 
     if (HTML_FILE)
         fprintf(HTML_FILE, 
@@ -214,7 +282,7 @@ ErrorCode Tree::Dump()
     return EVERYTHING_FINE;
 }
 
-ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile)
+static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile)
 {
     if (!node)
         return EVERYTHING_FINE;
@@ -229,7 +297,7 @@ ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile)
     return _recBuildCellTemplatesGraph(node->right, outGraphFile);
 }
 
-ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile)
+static ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile)
 {
     if (!node)
         return EVERYTHING_FINE;
@@ -258,7 +326,7 @@ ErrorCode Tree::Print(const char* outPath)
     return EVERYTHING_FINE;
 }
 
-ErrorCode _recPrint(TreeNode* node, FILE* outFile)
+static ErrorCode _recPrint(TreeNode* node, FILE* outFile)
 {
     if (!node)
     {
@@ -274,21 +342,23 @@ ErrorCode _recPrint(TreeNode* node, FILE* outFile)
     return EVERYTHING_FINE;
 }
 
-ErrorCode Tree::Read(const char* inPath)
+ErrorCode Tree::Read(const char* readPath)
 {
-    MyAssertSoft(inPath, ERROR_NULLPTR);
+    MyAssertSoft(readPath, ERROR_NULLPTR);
 
-    Text input = CreateText(inPath, ' ');
+    Text input = CreateText(readPath, ' ');
 
     size_t tokenNum = 0;
 
     TreeNodeResult rootRes = _recRead(&input, &tokenNum);
+    DestroyText(&input);
+
     RETURN_ERROR(rootRes.error);
 
     return this->Init(rootRes.value);
 }
 
-TreeNodeResult _recRead(Text* input, size_t* tokenNum)
+static TreeNodeResult _recRead(Text* input, size_t* tokenNum)
 {
     MyAssertSoftResult(*tokenNum < input->numberOfTokens, NULL, ERROR_INDEX_OUT_OF_BOUNDS);
 
@@ -306,7 +376,7 @@ TreeNodeResult _recRead(Text* input, size_t* tokenNum)
     return { nullptr, ERROR_SYNTAX };
 }
 
-TreeNodeResult _recReadOpenBracket(Text* input, char* tokenText, const char* openBracket, size_t* tokenNum)
+static TreeNodeResult _recReadOpenBracket(Text* input, char* tokenText, const char* openBracket, size_t* tokenNum)
 {
     if (!StringIsEmptyChars(tokenText, '(') || !StringIsEmptyChars(openBracket + 1, '\0'))
         return { nullptr, ERROR_SYNTAX };

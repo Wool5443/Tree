@@ -20,6 +20,7 @@ struct TreeNodeResult;
  * @var TreeNode::value - TreeElemen_t value
  * @var TreeNode::left - TreeNode* left
  * @var TreeNode::right - TreeNode* right
+ * @var TreeNode::parent - TreeNode* parent
  * @var TreeNode::id - size_t id - unique id of a node, used for dumping
 */
 struct TreeNode
@@ -27,6 +28,7 @@ struct TreeNode
     TreeElement_t value;
     TreeNode* left;
     TreeNode* right;
+    TreeNode* parent;
     size_t id;
 
     /**
@@ -44,7 +46,7 @@ struct TreeNode
      * 
      * @return Error
      */
-    ErrorCode DeleteNode();
+    ErrorCode Delete();
 
     /**
      * @brief Copies the node and returns the copy
@@ -120,10 +122,12 @@ struct Tree
     /**
      * @brief Read the tree in pre-order
      * 
-     * @param inPath - what to read
+     * @attention Make sure to delete the tree before reading into it
+     * 
+     * @param readPath - what to read
      * @return Error
      */
-    ErrorCode Read(const char* inPath);
+    ErrorCode Read(const char* readPath);
 };
 
 #endif
