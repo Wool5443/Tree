@@ -71,6 +71,8 @@ TreeNodeResult TreeNode::New(TreeElement_t value, TreeNode* left, TreeNode* righ
         right->parent = node;
     node->right = right;
 
+    node->parent = nullptr;
+
     node->id = CURRENT_ID++;
 
     return { node, EVERYTHING_FINE };
@@ -78,22 +80,18 @@ TreeNodeResult TreeNode::New(TreeElement_t value, TreeNode* left, TreeNode* righ
 
 ErrorCode TreeNode::Delete()
 {
-    SetConsoleColor(stderr, COLOR_YELLOW);
-    fprintf(stderr, "Deleting node id:%zu, value:%lg\n", this->id, this->value);
-    fprintf(stderr, "Left is %p, right is %p\n\n", this->left, this->right);
-    SetConsoleColor(stderr, COLOR_WHITE);
-
-    if (this->id == BAD_ID)
-        return EVERYTHING_FINE;
     if (this->left)
+    {
+        if (this->left->parent != this)
+            return ERROR_TREE_LOOP;
         RETURN_ERROR(this->left->Delete());
+    }
     if (this->right)
+    {
+        if (this->right->parent != this)
+            return ERROR_TREE_LOOP;
         RETURN_ERROR(this->right->Delete());
-
-    SetConsoleColor(stderr, COLOR_YELLOW);
-    fprintf(stderr, "Ending the deletion of node id:%zu, value:%lg\n", this->id, this->value);
-    fprintf(stderr, "Left is %p, right is %p\n\n", this->left, this->right);
-    SetConsoleColor(stderr, COLOR_WHITE);
+    }
 
     this->value = TREE_POISON;
     this->left  = nullptr;
@@ -136,6 +134,25 @@ static TreeNodeResult _recCopy(TreeNode* node)
     return { nullptr, copy.error };
 }
 
+ErrorCode TreeNode::AddLeft(TreeNode* left)
+{
+    MyAssertSoft(left, ERROR_NULLPTR);
+
+    this->left = left;
+    left->parent = this;
+
+    return EVERYTHING_FINE;
+}
+ErrorCode TreeNode::AddRight(TreeNode* right)
+{
+    MyAssertSoft(right, ERROR_NULLPTR);
+
+    this->right = right;
+    right->parent = this;
+
+    return EVERYTHING_FINE;
+}
+
 ErrorCode Tree::Init(TreeNode* root)
 {
     MyAssertSoft(root, ERROR_NULLPTR);
@@ -155,6 +172,9 @@ ErrorCode Tree::Verify()
     if (!this->root)
         return ERROR_NO_ROOT;
 
+    if (this->root->parent)
+        return ERROR_TREE_LOOP;
+
     size_t oldSize = this->size;
     RETURN_ERROR(this->UpdateTree());
 
@@ -166,6 +186,8 @@ ErrorCode Tree::Verify()
 
 ErrorCode Tree::UpdateTree()
 {
+    MyAssertSoft(this->root, ERROR_NO_ROOT);
+
     _TreeNodeCountResult countResult = _recCountNodes(this->root);
     RETURN_ERROR(countResult.error);
 
@@ -175,11 +197,7 @@ ErrorCode Tree::UpdateTree()
 
 static _TreeNodeCountResult _recCountNodes(TreeNode* node)
 {
-    if (node->id == BAD_ID)
-        return { SIZET_POISON, ERROR_TREE_LOOP };
-
-    size_t oldId = node->id;
-    node->id = 0;
+    MyAssertSoftResult(node, SIZET_POISON, ERROR_NULLPTR);
 
     size_t count = 1;
 
@@ -204,7 +222,6 @@ static _TreeNodeCountResult _recCountNodes(TreeNode* node)
     }
 
     count += countResult.value;
-    node->id = oldId;
 
     return { count, EVERYTHING_FINE };
 }
