@@ -21,13 +21,34 @@ int main()
 
     tree.root->AddRight(rightRes.value);
 
-    rightRes.value->AddRight(rightRes.value);
+    ErrorCode error = tree.UpdateTree();
+    MyAssertSoft(!error, error);
 
-    fprintf(stderr, "Dump: %s\n", ERROR_CODE_NAMES[tree.Dump()]);
+    error = tree.Dump();
+    MyAssertSoft(!error, error);
 
-    // fprintf(stderr, "Destructor: %s\n", ERROR_CODE_NAMES[tree.Destructor()]);
+    error = tree.Print("tree.txt");
+    MyAssertSoft(!error, error);
 
-    fprintf(stderr, "Delete: %s\n", ERROR_CODE_NAMES[tree.root->Delete()]);
+    error = tree.Destructor();
+    MyAssertSoft(!error, error);
+
+    Tree newTree = {};
+
+    error = newTree.Read("tree.txt");
+    MyAssertSoft(!error, error);
+
+    error = newTree.Dump();
+    MyAssertSoft(!error, error);
+
+    error = newTree.Verify();
+    MyAssertSoft(!error, error);
+
+    error = newTree.Print("newTree.txt");
+    MyAssertSoft(!error, error);
+
+    error = newTree.Destructor();
+    MyAssertSoft(!error, error);
 
     Tree::EndHtmlLogging();
 

@@ -93,10 +93,22 @@ ErrorCode TreeNode::Delete()
         RETURN_ERROR(this->right->Delete());
     }
 
-    this->value = TREE_POISON;
-    this->left  = nullptr;
-    this->right = nullptr;
-    this->id    = BAD_ID;
+    if (this->parent)
+    {
+        if (this->parent->left == this)
+            this->parent->left = nullptr;
+        else if (this->parent->right == this)
+            this->parent->right = nullptr;
+        else
+            return ERROR_TREE_LOOP;
+    }
+
+    this->value  = TREE_POISON;
+    this->left   = nullptr;
+    this->right  = nullptr;
+    this->parent = nullptr;
+
+    this->id = BAD_ID;
 
     free(this);
 
@@ -105,7 +117,7 @@ ErrorCode TreeNode::Delete()
 
 TreeNodeResult TreeNode::Copy()
 {
-    return TreeNode::New(this->value, this->left, this->right);
+    return _recCopy(this);
 }
 
 static TreeNodeResult _recCopy(TreeNode* node)
