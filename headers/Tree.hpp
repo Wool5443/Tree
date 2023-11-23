@@ -21,6 +21,7 @@ struct TreeNodeResult;
  * @var TreeNode::left - TreeNode* left
  * @var TreeNode::right - TreeNode* right
  * @var TreeNode::parent - TreeNode* parent
+ * @var TreeNode::nodeCount - number of all nodes going from the current one
  * @var TreeNode::id - size_t id - unique id of a node, used for dumping
 */
 struct TreeNode
@@ -29,6 +30,8 @@ struct TreeNode
     TreeNode* left;
     TreeNode* right;
     TreeNode* parent;
+
+    size_t nodeCount;
     size_t id;
 
     /**
@@ -77,6 +80,18 @@ struct TreeNodeResult
     ErrorCode error;
 };
 
+/** @struct TreeNodeCountResult
+ * @brief Used for counting nodes.
+ * 
+ * @var TreeNodeCountResult::value - how many nodes
+ * @var TreeNodeCountResult::error
+ */
+struct TreeNodeCountResult
+{
+    size_t value;
+    ErrorCode error;
+};
+
 /** @struct Tree
  * @brief Represents a binary tree
  * 
@@ -86,7 +101,7 @@ struct TreeNodeResult
 struct Tree
 {
     TreeNode* root;
-    size_t size;
+    size_t*   size;
 
     /**
      * @brief Initializes a tree with a root node
@@ -111,11 +126,18 @@ struct Tree
     ErrorCode Verify();
     
     /**
-     * @brief Updates the tree by counting its nodes
+     * @brief Counts nodes in the tree
      * 
      * @return Error
      */
-    ErrorCode UpdateTree();
+    TreeNodeCountResult CountNodes();
+
+    /**
+     * @brief Recalculates @ref TreeNode::nodeCount for every node in tree
+     * 
+     * @return Error
+     */
+    ErrorCode RecalculateNodes();
 
     /**
      * @brief Draws a tree into @ref IMG_FOLDER using Graphviz

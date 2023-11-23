@@ -9,7 +9,7 @@ int main()
     TreeNodeResult rootRes = TreeNode::New(10, nullptr, nullptr);
     MyAssertSoft(!rootRes.error, rootRes.error);
 
-    tree.root = rootRes.value;
+    tree.Init(rootRes.value);
 
     TreeNodeResult leftRes = TreeNode::New(5, nullptr, nullptr);
     MyAssertSoft(!leftRes.error, leftRes.error);
@@ -21,8 +21,14 @@ int main()
 
     tree.root->AddRight(rightRes.value);
 
-    ErrorCode error = tree.UpdateTree();
+    ErrorCode error = tree.Dump();
     MyAssertSoft(!error, error);
+
+    TreeNodeResult looperRes = TreeNode::New(8, leftRes.value, rightRes.value);
+    MyAssertSoft(!looperRes.error, looperRes.error);
+
+    rightRes.value->AddLeft(looperRes.value);
+    leftRes.value->AddRight(looperRes.value);
 
     error = tree.Dump();
     MyAssertSoft(!error, error);
