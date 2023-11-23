@@ -24,15 +24,6 @@ int main()
     ErrorCode error = tree.Dump();
     MyAssertSoft(!error, error);
 
-    TreeNodeResult looperRes = TreeNode::New(8, leftRes.value, rightRes.value);
-    MyAssertSoft(!looperRes.error, looperRes.error);
-
-    rightRes.value->AddLeft(looperRes.value);
-    leftRes.value->AddRight(looperRes.value);
-
-    error = tree.Dump();
-    MyAssertSoft(!error, error);
-
     error = tree.Print("tree.txt");
     MyAssertSoft(!error, error);
 

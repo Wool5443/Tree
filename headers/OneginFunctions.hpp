@@ -65,6 +65,6 @@ void PrintRawText(const Text* text, FILE* file);
  * @param[in] text - what to write.
  * @param [in, out] file - where to write.
 */
-void PrintTextTokens(const Text* text, FILE* file);
+void PrintTextTokens(const Text* text, FILE* file, char terminator);
 
 #endif

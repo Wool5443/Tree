@@ -515,14 +515,14 @@ static ErrorCode _recPrint(TreeNode* node, FILE* outFile)
 {
     if (!node)
     {
-        fprintf(outFile, "nil ");
+        fprintf(outFile, "nil%c", TOKEN_SEPARATOR);
         return EVERYTHING_FINE;
     }
 
-    fprintf(outFile, "( " TREE_ELEMENT_SPECIFIER " ", node->value);
+    fprintf(outFile, "(%c" TREE_ELEMENT_SPECIFIER "%c", TOKEN_SEPARATOR, node->value, TOKEN_SEPARATOR);
     RETURN_ERROR(_recPrint(node->left, outFile));
     RETURN_ERROR(_recPrint(node->right, outFile));
-    fprintf(outFile, ") ");
+    fprintf(outFile, ")%c", TOKEN_SEPARATOR);
 
     return EVERYTHING_FINE;
 }
@@ -531,7 +531,8 @@ ErrorCode Tree::Read(const char* readPath)
 {
     MyAssertSoft(readPath, ERROR_NULLPTR);
 
-    Text input = CreateText(readPath, ' ');
+    Text input = CreateText(readPath, TOKEN_SEPARATOR);
+    PrintTextTokens(&input, stdout, TOKEN_SEPARATOR);
 
     size_t tokenNum = 0;
 
@@ -539,8 +540,6 @@ ErrorCode Tree::Read(const char* readPath)
     DestroyText(&input);
 
     RETURN_ERROR(rootRes.error);
-
-    
 
     return this->Init(rootRes.value);
 }

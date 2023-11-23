@@ -71,13 +71,13 @@ void PrintRawText(const Text* text, FILE* file)
     fputs(text->rawText, file);
 }
 
-void PrintTextTokens(const Text* text, FILE* file)
+void PrintTextTokens(const Text* text, FILE* file, char terminator)
 {
     for (size_t i = 0; i < text->numberOfTokens; i++)
     {
         const char* line = text->tokens[i].text;
-        if (*line != '\n')
-            StringPrint(file, line, '\n');
+        if (*line != terminator)
+            StringPrint(file, line, terminator);
     }
 }
 
