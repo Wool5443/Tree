@@ -14,11 +14,15 @@ static FILE* HTML_FILE = NULL;
 
 static TreeNodeResult _recCopy(TreeNode* node);
 
+#ifdef SIZE_VERIFICATION
 static ErrorCode _recUpdateParentNodeCount(TreeNode* node, ssize_t change);
+#endif
 
 static TreeNodeCountResult _recCountNodes(TreeNode* node);
 
+#ifdef SIZE_VERIFICATION
 ErrorCode _recRecalcNodes(TreeNode* node);
+#endif
 
 static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
                                              size_t curDepth, const size_t maxDepth);
@@ -63,19 +67,26 @@ TreeNodeResult TreeNode::New(TreeElement_t value, TreeNode* left, TreeNode* righ
         return { NULL, ERROR_NO_MEMORY };
 
     node->value = value;
+
+    #ifdef SIZE_VERIFICATION
     node->nodeCount = 1;
+    #endif
 
     if (left)
     {
         left->parent = node;
+        #ifdef SIZE_VERIFICATION
         node->nodeCount += left->nodeCount;
+        #endif
     }
     node->left = left;
 
     if (right)
     {
         right->parent = node;
+        #ifdef SIZE_VERIFICATION
         node->nodeCount += right->nodeCount;
+        #endif
     }
     node->right = right;
 
@@ -119,7 +130,9 @@ ErrorCode TreeNode::Delete()
         else
             return ERROR_TREE_LOOP;
 
+        #ifdef SIZE_VERIFICATION
         _recUpdateParentNodeCount(this->parent, -(ssize_t)this->nodeCount);
+        #endif
     }
 
     this->value  = TREE_POISON;
@@ -127,7 +140,9 @@ ErrorCode TreeNode::Delete()
     this->right  = nullptr;
     this->parent = nullptr;
 
-    this->nodeCount = 0;
+    #ifdef SIZE_VERIFICATION
+    this->nodeCount = SIZET_POISON;
+    #endif
 
     free(this);
 
@@ -149,11 +164,15 @@ ErrorCode TreeNode::AddLeft(TreeNode* left)
     MyAssertSoft(left, ERROR_NULLPTR);
 
     this->left = left;
+    #ifdef SIZE_VERIFICATION
     this->nodeCount += left->nodeCount;
+    #endif
     left->parent = this;
 
+    #ifdef SIZE_VERIFICATION
     if (this->parent)
         return _recUpdateParentNodeCount(this->parent, left->nodeCount);
+    #endif
 
     return EVERYTHING_FINE;
 }
@@ -162,11 +181,15 @@ ErrorCode TreeNode::AddRight(TreeNode* right)
     MyAssertSoft(right, ERROR_NULLPTR);
 
     this->right = right;
+    #ifdef SIZE_VERIFICATION
     this->nodeCount += right->nodeCount;
+    #endif
     right->parent = this;
 
+    #ifdef SIZE_VERIFICATION
     if (this->parent)
         return _recUpdateParentNodeCount(this->parent, right->nodeCount);
+    #endif
 
     return EVERYTHING_FINE;
 }
@@ -221,6 +244,7 @@ static TreeNodeResult _recCopy(TreeNode* node)
     return copy;
 }
 
+#ifdef SIZE_VERIFICATION
 static ErrorCode _recUpdateParentNodeCount(TreeNode* node, ssize_t change)
 {
     MyAssertSoft(node, ERROR_NULLPTR);
@@ -243,13 +267,16 @@ static ErrorCode _recUpdateParentNodeCount(TreeNode* node, ssize_t change)
 
     return EVERYTHING_FINE;
 }
+#endif
 
 ErrorCode Tree::Init(TreeNode* root)
 {
     MyAssertSoft(root, ERROR_NULLPTR);
 
     this->root = root;
+    #ifdef SIZE_VERIFICATION
     this->size = &root->nodeCount;
+    #endif
 
     return EVERYTHING_FINE;
 }
@@ -269,17 +296,15 @@ ErrorCode Tree::Verify()
     if (this->root->parent)
         return ERROR_TREE_LOOP;
 
+    #ifdef SIZE_VERIFICATION
     if (*this->size > MAX_TREE_SIZE)
         return ERROR_BAD_SIZE;
     
-    #ifdef SIZE_VERIFICATION
-
     TreeNodeCountResult sizeRes = _recCountNodes(this->root);
     RETURN_ERROR(sizeRes.error);
 
     if (sizeRes.value != *this->size)
         return ERROR_BAD_TREE;
-
     #endif
 
     return EVERYTHING_FINE;
@@ -289,9 +314,7 @@ TreeNodeCountResult Tree::CountNodes()
 {
     ERR_DUMP_RET_RESULT(this, SIZET_POISON);
 
-    TreeNodeCountResult countResult = _recCountNodes(this->root);
-
-    return countResult;
+    return _recCountNodes(this->root);
 }
 
 static TreeNodeCountResult _recCountNodes(TreeNode* node)
@@ -332,6 +355,7 @@ static TreeNodeCountResult _recCountNodes(TreeNode* node)
     return { count, EVERYTHING_FINE };
 }
 
+#ifdef SIZE_VERIFICATION
 ErrorCode Tree::RecalculateNodes()
 {
     ERR_DUMP_RET(this);
@@ -369,6 +393,7 @@ ErrorCode _recRecalcNodes(TreeNode* node)
 
     return EVERYTHING_FINE;
 }
+#endif
 
 #define FONT_SIZE "10"
 #define FONT_NAME "\"Fira Code Bold\""
@@ -411,8 +436,16 @@ ErrorCode Tree::Dump()
     );
 
     fprintf(outGraphFile, "TREE[rank = \"min\", style = \"filled\", fillcolor = " TREE_COLOR ", "
-                          "label = \"{Tree|Error: %s|Size: %zu|<root>Root}\"];",
-                          ERROR_CODE_NAMES[this->Verify()], *this->size);
+                          "label = \"{Tree|Error: %s|"
+                          #ifdef SIZE_VERIFICATION
+                          "Size: %zu|"
+                          #endif
+                          "<root>Root}\"];",
+                          ERROR_CODE_NAMES[this->Verify()]
+                          #ifdef SIZE_VERIFICATION
+                          , *this->size
+                          #endif
+                          );
 
     fprintf(outGraphFile, "NODE_%zu[style = \"filled\", fillcolor = " NODE_COLOR ", ",
                            this->root->id);
@@ -423,12 +456,15 @@ ErrorCode Tree::Dump()
         "label = \"{Value:\\n" TREE_ELEMENT_SPECIFIER "|"
         "{<left>Left|<right>Right}}\"];\n", this->root->value);
 
-    const size_t MAX_DEPTH = min(*this->size, MAX_TREE_SIZE);
+    size_t MAX_DEPTH = MAX_TREE_SIZE;
+    #ifdef SIZE_VERIFICATION
+    MAX_DEPTH = min(*this->size, MAX_TREE_SIZE);
+    #endif
 
     RETURN_ERROR(_recBuildCellTemplatesGraph(this->root->left,  outGraphFile, 0, MAX_DEPTH));
     RETURN_ERROR(_recBuildCellTemplatesGraph(this->root->right, outGraphFile, 0, MAX_DEPTH));
 
-    RETURN_ERROR(_recDrawGraph(this->root, outGraphFile, 0, *this->size));
+    RETURN_ERROR(_recDrawGraph(this->root, outGraphFile, 0, MAX_DEPTH));
     fprintf(outGraphFile, "\n");
     fprintf(outGraphFile, "TREE:root->NODE_%zu\n", this->root->id);
 
@@ -456,10 +492,16 @@ static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
         return EVERYTHING_FINE;
 
     fprintf(outGraphFile, "NODE_%zu[style = \"filled\", fillcolor = " NODE_COLOR ", ", node->id);
+    fprintf(outGraphFile, "label = \"{Value:\\n");
     if (node->value == TREE_POISON)
-        fprintf(outGraphFile, "label = \"{Value:\\nPOISON|{<left>Left|<right>Right}}\"];\n");
+        fprintf(outGraphFile, "POISON");
     else
-        fprintf(outGraphFile, "label = \"{Value:\\n" TREE_ELEMENT_SPECIFIER "|{<left>Left|<right>Right}}\"];\n", node->value);
+        fprintf(outGraphFile, TREE_ELEMENT_SPECIFIER, node->value);
+
+    #ifdef SIZE_VERIFICATION
+    fprintf(outGraphFile, "|node count:\\n%zu", node->nodeCount);
+    #endif
+    fprintf(outGraphFile, "|{<left>left|<right>right}}\"];\n");
     
     if (node->left)
         RETURN_ERROR(_recBuildCellTemplatesGraph(node->left,  outGraphFile, curDepth + 1, maxDepth));

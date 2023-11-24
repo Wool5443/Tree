@@ -21,8 +21,8 @@ struct TreeNodeResult;
  * @var TreeNode::left - TreeNode* left
  * @var TreeNode::right - TreeNode* right
  * @var TreeNode::parent - TreeNode* parent
- * @var TreeNode::nodeCount - number of all nodes going from the current one
  * @var TreeNode::id - size_t id - unique id of a node, used for dumping
+ * @var TreeNode::nodeCount - number of all nodes going from the current one
 */
 struct TreeNode
 {
@@ -31,8 +31,11 @@ struct TreeNode
     TreeNode* right;
     TreeNode* parent;
 
-    size_t nodeCount;
     size_t id;
+
+    #ifdef SIZE_VERIFICATION
+    size_t nodeCount;
+    #endif
 
     /**
      * @brief Returns a new node result
@@ -101,7 +104,10 @@ struct TreeNodeCountResult
 struct Tree
 {
     TreeNode* root;
+
+    #ifdef SIZE_VERIFICATION
     size_t*   size;
+    #endif
 
     /**
      * @brief Initializes a tree with a root node
@@ -132,12 +138,14 @@ struct Tree
      */
     TreeNodeCountResult CountNodes();
 
+    #ifdef SIZE_VERIFICATION
     /**
      * @brief Recalculates @ref TreeNode::nodeCount for every node in tree
      * 
      * @return Error
      */
     ErrorCode RecalculateNodes();
+    #endif
 
     /**
      * @brief Draws a tree into @ref IMG_FOLDER using Graphviz
