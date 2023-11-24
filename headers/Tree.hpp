@@ -106,7 +106,7 @@ struct Tree
     TreeNode* root;
 
     #ifdef SIZE_VERIFICATION
-    size_t*   size;
+    size_t* size;
     #endif
 
     /**

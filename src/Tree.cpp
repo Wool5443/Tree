@@ -284,6 +284,10 @@ ErrorCode Tree::Init(TreeNode* root)
 ErrorCode Tree::Destructor()
 {
     ERR_DUMP_RET(this);
+    this->root = nullptr;
+    #ifdef SIZE_VERIFICATION
+    this->size = nullptr;
+    #endif
 
     return this->root->Delete();
 }
