@@ -29,7 +29,7 @@ static ErrorCode _recPrint(TreeNode* node, FILE* outFile);
 
 static TreeNodeResult _recRead(Text* input, size_t* tokenNum);
 
-static TreeNodeResult _recReadOpenBracket(Text* input, char* tokenText, const char* openBracket,
+static TreeNodeResult _recReadOpenBracket(Text* input, const char* openBracket,
                                           size_t* tokenNum);
 
 #define ERR_DUMP_RET(tree)                              \
@@ -515,14 +515,14 @@ static ErrorCode _recPrint(TreeNode* node, FILE* outFile)
 {
     if (!node)
     {
-        fprintf(outFile, "nil%c", TOKEN_SEPARATOR);
+        fprintf(outFile, "nil%c", TREE_TOKEN_SEPARATOR);
         return EVERYTHING_FINE;
     }
 
-    fprintf(outFile, "(%c" TREE_ELEMENT_SPECIFIER "%c", TOKEN_SEPARATOR, node->value, TOKEN_SEPARATOR);
+    fprintf(outFile, "(%c" TREE_ELEMENT_SPECIFIER "%c", TREE_TOKEN_SEPARATOR, node->value, TREE_TOKEN_SEPARATOR);
     RETURN_ERROR(_recPrint(node->left, outFile));
     RETURN_ERROR(_recPrint(node->right, outFile));
-    fprintf(outFile, ")%c", TOKEN_SEPARATOR);
+    fprintf(outFile, ")%c", TREE_TOKEN_SEPARATOR);
 
     return EVERYTHING_FINE;
 }
@@ -531,8 +531,7 @@ ErrorCode Tree::Read(const char* readPath)
 {
     MyAssertSoft(readPath, ERROR_NULLPTR);
 
-    Text input = CreateText(readPath, TOKEN_SEPARATOR);
-    PrintTextTokens(&input, stdout, TOKEN_SEPARATOR);
+    Text input = CreateText(readPath, TREE_TOKEN_SEPARATOR);
 
     size_t tokenNum = 0;
 
@@ -549,33 +548,35 @@ static TreeNodeResult _recRead(Text* input, size_t* tokenNum)
     MyAssertSoftResult(*tokenNum < input->numberOfTokens, NULL, ERROR_INDEX_OUT_OF_BOUNDS);
 
     const String* token = &input->tokens[(*tokenNum)++];
-    char* tokenText = (char*)token->text;
-    tokenText[token->length] = '\0';
+    ((char*)(token->text))[token->length] = '\0';
 
-    const char* openBracket = strchr(tokenText, '(');
+    const char* openBracket = strchr(token->text, '(');
     if (openBracket)
-        return _recReadOpenBracket(input, tokenText, openBracket, tokenNum);
+    {
+        if (!StringIsEmptyChars(token->text, '('))
+            return { nullptr, ERROR_SYNTAX };
+        return _recReadOpenBracket(input, openBracket, tokenNum);
+    }
 
-    const char* nil = strstr(tokenText, "nil");
+    const char* nil = strstr(token->text, "nil");
     if (nil)
         return { nullptr, EVERYTHING_FINE };
     return { nullptr, ERROR_SYNTAX };
 }
 
-static TreeNodeResult _recReadOpenBracket(Text* input, char* tokenText, const char* openBracket, size_t* tokenNum)
+static TreeNodeResult _recReadOpenBracket(Text* input, const char* openBracket, size_t* tokenNum)
 {
-    if (!StringIsEmptyChars(tokenText, '(') || !StringIsEmptyChars(openBracket + 1, '\0'))
+    if (!StringIsEmptyChars(openBracket + 1, '\0'))
         return { nullptr, ERROR_SYNTAX };
 
     const String* token = &input->tokens[(*tokenNum)++];
-    tokenText = (char*)token->text;
-    tokenText[token->length] = '\0';
+    ((char*)(token->text))[token->length] = '\0';
 
     TreeElement_t value = TREE_POISON;
     int readChars = 0;
 
-    if (sscanf(tokenText, TREE_ELEMENT_SPECIFIER "%n", &value, &readChars) != 1 ||
-        !StringIsEmptyChars(tokenText + readChars, '\0'))
+    if (sscanf(token->text, TREE_ELEMENT_SPECIFIER "%n", &value, &readChars) != 1 ||
+        !StringIsEmptyChars(token->text + readChars, '\0'))
         return { nullptr, ERROR_SYNTAX };
     
     TreeNodeResult leftRes = _recRead(input, tokenNum);
@@ -588,10 +589,9 @@ static TreeNodeResult _recReadOpenBracket(Text* input, char* tokenText, const ch
     RETURN_ERROR_RESULT(nodeRes, nullptr);
 
     token = &input->tokens[(*tokenNum)++];
-    tokenText = (char*)token->text;
-    tokenText[token->length] = '\0';
+    ((char*)(token->text))[token->length] = '\0';
 
-    const char* closeBracket = strchr(tokenText, ')');
+    const char* closeBracket = strchr(token->text, ')');
     if (!closeBracket)
         return { nullptr, ERROR_SYNTAX };
     
