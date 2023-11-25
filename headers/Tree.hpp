@@ -62,20 +62,20 @@ struct TreeNode
     TreeNodeResult Copy();
 
     /**
-     * @brief Adds the left node.
+     * @brief Sets the left node.
      * 
      * @param left - the left node.
      * @return Error
      */
-    ErrorCode AddLeft(TreeNode* left);
+    ErrorCode SetLeft(TreeNode* left);
     
     /**
-     * @brief Adds the right node.
+     * @brief Sets the right node.
      * 
      * @param right - the right node.
      * @return Error
      */
-    ErrorCode AddRight(TreeNode* right);
+    ErrorCode SetRight(TreeNode* right);
 };
 struct TreeNodeResult
 {

@@ -159,7 +159,7 @@ TreeNodeResult TreeNode::Copy()
     return _recCopy(this);
 }
 
-ErrorCode TreeNode::AddLeft(TreeNode* left)
+ErrorCode TreeNode::SetLeft(TreeNode* left)
 {
     MyAssertSoft(left, ERROR_NULLPTR);
 
@@ -176,7 +176,7 @@ ErrorCode TreeNode::AddLeft(TreeNode* left)
 
     return EVERYTHING_FINE;
 }
-ErrorCode TreeNode::AddRight(TreeNode* right)
+ErrorCode TreeNode::SetRight(TreeNode* right)
 {
     MyAssertSoft(right, ERROR_NULLPTR);
 
