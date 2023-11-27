@@ -465,8 +465,10 @@ ErrorCode Tree::Dump()
     MAX_DEPTH = min(*this->size, MAX_TREE_SIZE);
     #endif
 
-    RETURN_ERROR(_recBuildCellTemplatesGraph(this->root->left,  outGraphFile, 0, MAX_DEPTH));
-    RETURN_ERROR(_recBuildCellTemplatesGraph(this->root->right, outGraphFile, 0, MAX_DEPTH));
+    if (this->root->left)
+        RETURN_ERROR(_recBuildCellTemplatesGraph(this->root->left,  outGraphFile, 0, MAX_DEPTH));
+    if (this->root->right)
+        RETURN_ERROR(_recBuildCellTemplatesGraph(this->root->right, outGraphFile, 0, MAX_DEPTH));
 
     RETURN_ERROR(_recDrawGraph(this->root, outGraphFile, 0, MAX_DEPTH));
     fprintf(outGraphFile, "\n");
