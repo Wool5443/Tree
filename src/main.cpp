@@ -14,12 +14,12 @@ int main()
     TreeNodeResult leftRes = TreeNode::New(5, nullptr, nullptr);
     MyAssertSoft(!leftRes.error, leftRes.error);
 
-    tree.root->AddLeft(leftRes.value);
+    tree.root->SetLeft(leftRes.value);
 
     TreeNodeResult rightRes = TreeNode::New(15, nullptr, nullptr);
     MyAssertSoft(!rightRes.error, rightRes.error);
 
-    tree.root->AddRight(rightRes.value);
+    tree.root->SetRight(rightRes.value);
 
     ErrorCode error = tree.Dump();
     MyAssertSoft(!error, error);

@@ -104,19 +104,6 @@ ErrorCode TreeNode::Delete()
 
     this->id = BAD_ID;
 
-    if (this->left)
-    {
-        if (this->left->parent != this)
-            return ERROR_TREE_LOOP;
-        RETURN_ERROR(this->left->Delete());
-    }
-    if (this->right)
-    {
-        if (this->right->parent != this)
-            return ERROR_TREE_LOOP;
-        RETURN_ERROR(this->right->Delete());
-    }
-
     if (this->parent)
     {
         if (this->parent->left == this)
@@ -133,6 +120,19 @@ ErrorCode TreeNode::Delete()
         #ifdef SIZE_VERIFICATION
         _recUpdateParentNodeCount(this->parent, -(ssize_t)this->nodeCount);
         #endif
+    }
+
+    if (this->left)
+    {
+        if (this->left->parent != this)
+            return ERROR_TREE_LOOP;
+        RETURN_ERROR(this->left->Delete());
+    }
+    if (this->right)
+    {
+        if (this->right->parent != this)
+            return ERROR_TREE_LOOP;
+        RETURN_ERROR(this->right->Delete());
     }
 
     this->value  = TREE_POISON;
@@ -284,12 +284,14 @@ ErrorCode Tree::Init(TreeNode* root)
 ErrorCode Tree::Destructor()
 {
     ERR_DUMP_RET(this);
+
+    RETURN_ERROR(this->root->Delete());
+
     this->root = nullptr;
     #ifdef SIZE_VERIFICATION
     this->size = nullptr;
     #endif
-
-    return this->root->Delete();
+    return EVERYTHING_FINE;
 }
 
 ErrorCode Tree::Verify()
