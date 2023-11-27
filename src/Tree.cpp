@@ -291,6 +291,7 @@ ErrorCode Tree::Destructor()
     #ifdef SIZE_VERIFICATION
     this->size = nullptr;
     #endif
+    
     return EVERYTHING_FINE;
 }
 
