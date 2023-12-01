@@ -280,6 +280,19 @@ ErrorCode Tree::Init(TreeNode* root)
     return EVERYTHING_FINE;
 }
 
+ErrorCode Tree::Init()
+{
+    TreeNodeResult rootRes = TreeNode::New(TREE_POISON, nullptr, nullptr);
+    RETURN_ERROR(rootRes.error);
+
+    this->root = rootRes.value;
+    #ifdef SIZE_VERIFICATION
+    this->size = &rootRes.value->nodeCount;
+    #endif
+
+    return EVERYTHING_FINE;
+}
+
 ErrorCode Tree::Destructor()
 {
     ERR_DUMP_RET(this);

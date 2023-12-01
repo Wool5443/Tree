@@ -112,10 +112,17 @@ struct Tree
     /**
      * @brief Initializes a tree with a root node
      * 
-     * @param root
+     * @param [in] root
      * @return Error
      */
     ErrorCode Init(TreeNode* root);
+
+    /**
+     * @brief Initializes a tree with an empty root
+     * 
+     * @return ErrorCode 
+     */
+    ErrorCode Init();
 
     /**
      * @brief Destroys the tree
