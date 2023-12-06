@@ -8,9 +8,9 @@
 #include "StringFunctions.hpp"
 #include "Sort.hpp"
 
-size_t _countTokens(const char* string, char terminator);
+size_t _countWords(const char* string, char terminator);
 
-const String* _split(const char* string, size_t numOfTokens, char terminator);
+const String* _split(const char* string, size_t numOfWords, char terminator);
 
 int _stringCompareStartToEnd(const void* s1, const void* s2);
 
@@ -36,9 +36,9 @@ Text CreateText(const char* path, char terminator)
 
     text.rawText = rawText;
 
-    text.numberOfTokens = _countTokens(rawText, terminator);
+    text.numberOfWords = _countWords(rawText, terminator);
 
-    text.tokens = _split(text.rawText, text.numberOfTokens, terminator);
+    text.words = _split(text.rawText, text.numberOfWords, terminator);
 
     return text;
 }
@@ -46,22 +46,22 @@ Text CreateText(const char* path, char terminator)
 void DestroyText(Text* text)
 {
     MyAssertHard(text, ERROR_NULLPTR, );
-    free((void*)(text->tokens));
+    free((void*)(text->words));
     free((void*)(text->rawText));
 }
 
-void SortTextTokens(Text* text, StringCompareMethod sortType)
+void SortTextWords(Text* text, StringCompareMethod sortType)
 {
     switch (sortType)
     {
         case START_TO_END:
-            Sort((void*)(text->tokens), text->numberOfTokens, sizeof((text->tokens)[0]), _stringCompareStartToEnd);
+            Sort((void*)(text->words), text->numberOfWords, sizeof((text->words)[0]), _stringCompareStartToEnd);
             break;
         case END_TO_START:
-            Sort((void*)(text->tokens), text->numberOfTokens, sizeof((text->tokens)[0]), _stringCompareEndToStart);
+            Sort((void*)(text->words), text->numberOfWords, sizeof((text->words)[0]), _stringCompareEndToStart);
             break;
         default:
-            Sort((void*)(text->tokens), text->numberOfTokens, sizeof((text->tokens)[0]), _stringCompareStartToEnd);
+            Sort((void*)(text->words), text->numberOfWords, sizeof((text->words)[0]), _stringCompareStartToEnd);
             break;
     }
 }
@@ -71,11 +71,11 @@ void PrintRawText(const Text* text, FILE* file)
     fputs(text->rawText, file);
 }
 
-void PrintTextTokens(const Text* text, FILE* file, char terminator)
+void PrintTextWords(const Text* text, FILE* file, char terminator)
 {
-    for (size_t i = 0; i < text->numberOfTokens; i++)
+    for (size_t i = 0; i < text->numberOfWords; i++)
     {
-        const char* line = text->tokens[i].text;
+        const char* line = text->words[i].text;
         if (*line != terminator)
             StringPrint(file, line, terminator);
     }
@@ -91,43 +91,43 @@ int _stringCompareEndToStart(const void* s1, const void* s2)
     return StringCompare((String*)s1, (String*)s2, END_TO_START, IGNORE_CASE, IGNORED_SYMBOLS);
 }
 
-size_t _countTokens(const char* string, char terminator)
+size_t _countWords(const char* string, char terminator)
 {
     MyAssertHard(string, ERROR_NULLPTR, );
 
-    size_t tokens = 1;
-    const char* newTokenSymbol = strchr(string, terminator);
-    while (newTokenSymbol != NULL)
+    size_t words = 1;
+    const char* newWordSymbol = strchr(string, terminator);
+    while (newWordSymbol != NULL)
     {
-        tokens++;
-        newTokenSymbol = strchr(newTokenSymbol + 1, terminator);
+        words++;
+        newWordSymbol = strchr(newWordSymbol + 1, terminator);
     }
-    return tokens;
+    return words;
 }
 
-const String* _split(const char* string, size_t numOfTokens, char terminator)
+const String* _split(const char* string, size_t numOfWords, char terminator)
 {
     MyAssertHard(string, ERROR_NULLPTR);
 
-    String* textTokens = (String*)calloc(numOfTokens, sizeof(textTokens[0]));
+    String* textWords = (String*)calloc(numOfWords, sizeof(textWords[0]));
 
-    MyAssertHard(textTokens, ERROR_NO_MEMORY);
+    MyAssertHard(textWords, ERROR_NO_MEMORY);
 
-    const char* endCurToken = strchr(string, terminator);
+    const char* endCurWord = strchr(string, terminator);
 
-    textTokens[0] = {.text = string,
-                     .length = (size_t)(endCurToken - string)};
+    textWords[0] = {.text = string,
+                     .length = (size_t)(endCurWord - string)};
 
     size_t i = 1;
 
-    while (endCurToken)
+    while (endCurWord)
     {
-        textTokens[i] = {};
-        textTokens[i].text = endCurToken + 1;
-        endCurToken = strchr(endCurToken + 1, terminator);
-        textTokens[i].length = endCurToken ? (size_t)(endCurToken - textTokens[i].text) : 0;
+        textWords[i] = {};
+        textWords[i].text = endCurWord + 1;
+        endCurWord = strchr(endCurWord + 1, terminator);
+        textWords[i].length = endCurWord ? (size_t)(endCurWord - textWords[i].text) : 0;
         i++;
     }
 
-    return (const String*)textTokens;
+    return (const String*)textWords;
 }

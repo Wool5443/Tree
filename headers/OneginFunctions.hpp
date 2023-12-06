@@ -12,19 +12,19 @@
 static const char* const IGNORED_SYMBOLS = " ,.;:'\"-!?`~()[]{}";
 
 /** @struct Text
- * @brief Text struct which contains text itself and tokens of the text.
+ * @brief Text struct which contains text itself and words of the text.
  * 
  * @var Text::rawText - text.
- * @var Text::tokens - const pointers to tokens in rawText.
+ * @var Text::words - const pointers to words in rawText.
  * @var Text::size - number of bytes in text.
- * @var Text::numberOfTokens - the length of tokens.
+ * @var Text::numberOfWords - the length of words.
 */
 struct Text
 {
     const char* rawText;
-    const String* tokens;
+    const String* words;
     size_t size;
-    size_t numberOfTokens;
+    size_t numberOfWords;
 };
 
 /**
@@ -44,12 +44,12 @@ Text CreateText(const char* path, char terminator);
 void DestroyText(Text* text);
 
 /**
- * @brief Sorts text's tokens. Uses quick sort.
+ * @brief Sorts text's words. Uses quick sort.
  * 
- * @param [in] text - the text tokens of which are to be sorted.
- * @param [in] sortType - the way to compare tokens.
+ * @param [in] text - the text words of which are to be sorted.
+ * @param [in] sortType - the way to compare words.
 */
-void SortTextTokens(Text* text, StringCompareMethod sortType);
+void SortTextWords(Text* text, StringCompareMethod sortType);
 
 /**
  * @brief Prints raw text form text to a file.
@@ -65,6 +65,6 @@ void PrintRawText(const Text* text, FILE* file);
  * @param[in] text - what to write.
  * @param [in, out] file - where to write.
 */
-void PrintTextTokens(const Text* text, FILE* file, char terminator);
+void PrintTextWords(const Text* text, FILE* file, char terminator);
 
 #endif
