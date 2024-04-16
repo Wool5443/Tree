@@ -31,8 +31,7 @@ static ErrorCode _recPrint(TreeNode* node, FILE* outFile);
 
 static TreeNodeResult _recRead(SplitString* split, size_t* wordNum);
 
-static TreeNodeResult _recReadOpenBracket(SplitString* split, char* openBracket,
-                                          size_t* wordNum);
+static TreeNodeResult _recReadOpenBracket(SplitString* split, size_t* wordNum);
 
 #define ERR_DUMP_RET(tree)                              \
 do                                                      \
@@ -648,7 +647,7 @@ static TreeNodeResult _recRead(SplitString* split, size_t* wordsNum)
     return { nullptr, ERROR_SYNTAX };
 }
 
-static TreeNodeResult _recReadOpenBracket(SplitString* split, char* openBracket, size_t* wordNum)
+static TreeNodeResult _recReadOpenBracket(SplitString* split, size_t* wordNum)
 {
     String openBracketString = {};
 
