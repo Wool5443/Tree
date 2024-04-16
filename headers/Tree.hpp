@@ -6,7 +6,6 @@
 #include "Utils.hpp"
 #include "TreeSettings.hpp"
 
-
 struct TreeNodeResult;
 /** @struct TreeNode
  * @brief A binary tree node containing value and ptrs to children
