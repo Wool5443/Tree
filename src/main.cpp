@@ -2,7 +2,9 @@
 
 int main()
 {
-    Tree::StartHtmlLogging();
+    const char* logFolder = "../log";
+
+    Tree::StartLogging(logFolder);
 
     Tree tree = {};
 
@@ -47,7 +49,7 @@ int main()
     error = newTree.Destructor();
     MyAssertSoft(!error, error);
 
-    Tree::EndHtmlLogging();
+    Tree::EndLogging();
 
     return 0;
 }

@@ -2,23 +2,23 @@
 #include <string.h>
 #include <ctype.h>
 #include "Tree.hpp"
-#include "OneginFunctions.hpp"
 #include "MinMax.hpp"
 
 static const size_t MAX_PATH_LENGTH = 128;
 static const size_t MAX_COMMAND_LENGTH = 256;
 
-static FILE* HTML_FILE = NULL;
+static FILE*        HTML_FILE  = NULL;
+static const char*  LOG_FOLDER = nullptr;
 
 static TreeNodeResult _recCopy(TreeNode* node);
 
-#ifdef SIZE_VERIFICATION
+#ifndef NDEBUG
 static ErrorCode _recUpdateParentNodeCount(TreeNode* node, ssize_t change);
 #endif
 
 static TreeNodeCountResult _recCountNodes(TreeNode* node);
 
-#ifdef SIZE_VERIFICATION
+#ifndef NDEBUG
 ErrorCode _recRecalcNodes(TreeNode* node);
 #endif
 
@@ -29,9 +29,9 @@ static ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile, size_t curDep
 
 static ErrorCode _recPrint(TreeNode* node, FILE* outFile);
 
-static TreeNodeResult _recRead(Text* input, size_t* wordNum);
+static TreeNodeResult _recRead(SplitString* split, size_t* wordNum);
 
-static TreeNodeResult _recReadOpenBracket(Text* input, const char* openBracket,
+static TreeNodeResult _recReadOpenBracket(SplitString* split, char* openBracket,
                                           size_t* wordNum);
 
 #define ERR_DUMP_RET(tree)                              \
@@ -66,14 +66,14 @@ TreeNodeResult TreeNode::New(TreeElement_t value, TreeNode* left, TreeNode* righ
 
     node->value = value;
 
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     node->nodeCount = 1;
     #endif
 
     if (left)
     {
         left->parent = node;
-        #ifdef SIZE_VERIFICATION
+        #ifndef NDEBUG
         node->nodeCount += left->nodeCount;
         #endif
     }
@@ -82,15 +82,13 @@ TreeNodeResult TreeNode::New(TreeElement_t value, TreeNode* left, TreeNode* righ
     if (right)
     {
         right->parent = node;
-        #ifdef SIZE_VERIFICATION
+        #ifndef NDEBUG
         node->nodeCount += right->nodeCount;
         #endif
     }
-    node->right = right;
-
+    node->right  = right;
     node->parent = nullptr;
-
-    node->id = CURRENT_ID++;
+    node->id     = CURRENT_ID++;
 
     return { node, EVERYTHING_FINE };
 }
@@ -115,7 +113,7 @@ ErrorCode TreeNode::Delete()
         else
             return ERROR_TREE_LOOP;
 
-        #ifdef SIZE_VERIFICATION
+        #ifndef NDEBUG
         _recUpdateParentNodeCount(this->parent, -(ssize_t)this->nodeCount);
         #endif
     }
@@ -138,7 +136,7 @@ ErrorCode TreeNode::Delete()
     this->right  = nullptr;
     this->parent = nullptr;
 
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     this->nodeCount = SIZET_POISON;
     #endif
 
@@ -162,12 +160,12 @@ ErrorCode TreeNode::SetLeft(TreeNode* left)
     MyAssertSoft(left, ERROR_NULLPTR);
 
     this->left = left;
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     this->nodeCount += left->nodeCount;
     #endif
     left->parent = this;
 
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     if (this->parent)
         return _recUpdateParentNodeCount(this->parent, left->nodeCount);
     #endif
@@ -179,12 +177,12 @@ ErrorCode TreeNode::SetRight(TreeNode* right)
     MyAssertSoft(right, ERROR_NULLPTR);
 
     this->right = right;
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     this->nodeCount += right->nodeCount;
     #endif
     right->parent = this;
 
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     if (this->parent)
         return _recUpdateParentNodeCount(this->parent, right->nodeCount);
     #endif
@@ -242,7 +240,7 @@ static TreeNodeResult _recCopy(TreeNode* node)
     return copy;
 }
 
-#ifdef SIZE_VERIFICATION
+#ifndef NDEBUG
 static ErrorCode _recUpdateParentNodeCount(TreeNode* node, ssize_t change)
 {
     MyAssertSoft(node, ERROR_NULLPTR);
@@ -272,7 +270,7 @@ ErrorCode Tree::Init(TreeNode* root)
     MyAssertSoft(root, ERROR_NULLPTR);
 
     this->root = root;
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     this->size = &root->nodeCount;
     #endif
 
@@ -285,7 +283,7 @@ ErrorCode Tree::Init()
     RETURN_ERROR(rootRes.error);
 
     this->root = rootRes.value;
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     this->size = &rootRes.value->nodeCount;
     #endif
 
@@ -299,7 +297,7 @@ ErrorCode Tree::Destructor()
     RETURN_ERROR(this->root->Delete());
 
     this->root = nullptr;
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     this->size = nullptr;
     #endif
     
@@ -314,7 +312,7 @@ ErrorCode Tree::Verify()
     if (this->root->parent)
         return ERROR_TREE_LOOP;
 
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     if (*this->size > MAX_TREE_SIZE)
         return ERROR_BAD_SIZE;
     
@@ -373,7 +371,7 @@ static TreeNodeCountResult _recCountNodes(TreeNode* node)
     return { count, EVERYTHING_FINE };
 }
 
-#ifdef SIZE_VERIFICATION
+#ifndef NDEBUG
 ErrorCode Tree::RecalculateNodes()
 {
     ERR_DUMP_RET(this);
@@ -440,7 +438,7 @@ ErrorCode Tree::Dump()
         DUMP_ITERATION);
 
     char outGraphPath[MAX_PATH_LENGTH] = "";
-    sprintf(outGraphPath, "%s/Iteration%zu.dot", DOT_FOLDER, DUMP_ITERATION);
+    sprintf(outGraphPath, "%s/dot/Iteration%zu.dot", LOG_FOLDER, DUMP_ITERATION);
 
     FILE* outGraphFile = fopen(outGraphPath, "w");
     MyAssertSoft(outGraphFile, ERROR_BAD_FILE);
@@ -455,12 +453,12 @@ ErrorCode Tree::Dump()
 
     fprintf(outGraphFile, "TREE[rank = \"min\", style = \"filled\", fillcolor = " TREE_COLOR ", "
                           "label = \"{Tree|Error: %s|"
-                          #ifdef SIZE_VERIFICATION
+                          #ifndef NDEBUG
                           "Size: %zu|"
                           #endif
                           "<root>Root}\"];",
                           ERROR_CODE_NAMES[this->Verify()]
-                          #ifdef SIZE_VERIFICATION
+                          #ifndef NDEBUG
                           , *this->size
                           #endif
                           );
@@ -475,7 +473,7 @@ ErrorCode Tree::Dump()
         "{<left>Left|<right>Right}}\"];\n", this->root->value);
 
     size_t MAX_DEPTH = MAX_TREE_SIZE;
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     MAX_DEPTH = min(*this->size, MAX_TREE_SIZE);
     #endif
 
@@ -492,11 +490,11 @@ ErrorCode Tree::Dump()
     fclose(outGraphFile);
 
     char command[MAX_COMMAND_LENGTH] = "";
-    sprintf(command, "dot %s -T png -o %s/Iteration%zu.png", outGraphPath, IMG_FOLDER, DUMP_ITERATION);
+    sprintf(command, "dot %s -T png -o %s/img/Iteration%zu.png", outGraphPath, LOG_FOLDER, DUMP_ITERATION);
     system(command);
 
     if (HTML_FILE)
-        fprintf(HTML_FILE, "<img src = \"%s/Iteration%zu.png\"/>\n", IMG_FOLDER, DUMP_ITERATION);
+        fprintf(HTML_FILE, "<img src = \"%s/img/Iteration%zu.png\"/>\n", LOG_FOLDER, DUMP_ITERATION);
 
     DUMP_ITERATION++;
 
@@ -526,7 +524,7 @@ static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
     else
         fprintf(outGraphFile, "%zu", node->id);
 
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     fprintf(outGraphFile, "|node count:\\n%zu", node->nodeCount);
     #endif
     fprintf(outGraphFile, "|{<left>left|<right>right}}\"];\n");
@@ -571,7 +569,7 @@ ErrorCode Tree::Print(const char* outPath)
     MyAssertSoft(outPath, ERROR_NULLPTR);
     ERR_DUMP_RET(this);
 
-    FILE* outFile = fopen(outPath, "w");
+    FILE* outFile = fopen(outPath, "wb");
     MyAssertSoft(outFile, ERROR_BAD_FILE);
 
     RETURN_ERROR(_recPrint(this->root, outFile));
@@ -585,14 +583,14 @@ static ErrorCode _recPrint(TreeNode* node, FILE* outFile)
 {
     if (!node)
     {
-        fprintf(outFile, "nil%c", TREE_WORD_SEPARATOR);
+        fprintf(outFile, "nil%s", TREE_WORD_SEPARATOR);
         return EVERYTHING_FINE;
     }
 
-    fprintf(outFile, "(%c" TREE_ELEMENT_SPECIFIER "%c", TREE_WORD_SEPARATOR, node->value, TREE_WORD_SEPARATOR);
+    fprintf(outFile, "(%s" TREE_ELEMENT_SPECIFIER "%s", TREE_WORD_SEPARATOR, node->value, TREE_WORD_SEPARATOR);
     RETURN_ERROR(_recPrint(node->left, outFile));
     RETURN_ERROR(_recPrint(node->right, outFile));
-    fprintf(outFile, ")%c", TREE_WORD_SEPARATOR);
+    fprintf(outFile, ")%s", TREE_WORD_SEPARATOR);
 
     return EVERYTHING_FINE;
 }
@@ -601,82 +599,92 @@ ErrorCode Tree::Read(const char* readPath)
 {
     MyAssertSoft(readPath, ERROR_NULLPTR);
 
-    Text input = CreateText(readPath, TREE_WORD_SEPARATOR);
+    FILE* readFile = fopen(readPath, "rb");
+    if (!readFile) return ERROR_BAD_FILE;
+
+    size_t fileSize = GetFileSize(readPath);
+    char*  buffer   = (char*)calloc(fileSize + 1, 1);
+    if (!buffer)
+    {
+        fclose(readFile);
+        return ERROR_NO_MEMORY;
+    }
+
+    if (fread(buffer, 1, fileSize, readFile) != fileSize)
+    {
+        fclose(readFile);
+        free(buffer);
+        return ERROR_BAD_FILE;
+    }
+
+    String string = {};
+    string.Create(buffer, fileSize);
+
+    SplitStringResult splitRes = string.Split(TREE_WORD_SEPARATOR);
+    RETURN_ERROR(splitRes.error);
 
     size_t wordNum = 0;
 
-    TreeNodeResult rootRes = _recRead(&input, &wordNum);
-    DestroyText(&input);
+    TreeNodeResult rootRes = _recRead(&splitRes.value, &wordNum);
 
     RETURN_ERROR(rootRes.error);
 
     return this->Init(rootRes.value);
 }
 
-static TreeNodeResult _recRead(Text* input, size_t* wordNum)
+static TreeNodeResult _recRead(SplitString* split, size_t* wordsNum)
 {
-    MyAssertSoftResult(*wordNum < input->numberOfWords, NULL, ERROR_INDEX_OUT_OF_BOUNDS);
+    MyAssertSoftResult(split, nullptr, ERROR_NULLPTR);
 
-    const String* string = &input->words[(*wordNum)++];
-    ((char*)(string->text))[string->length] = '\0';
+    String* currentWord = &split->words[(*wordsNum)++];
 
-    const char* openBracket = strchr(string->text, '(');
+    char* openBracket = strchr(currentWord->buf, '(');
     if (openBracket)
-    {
-        if (!StringIsEmptyChars(string->text, '('))
-            return { nullptr, ERROR_SYNTAX };
-        return _recReadOpenBracket(input, openBracket, wordNum);
-    }
+        return _recReadOpenBracket(split, openBracket, wordsNum);
 
-    const char* nil = strstr(string->text, "nil");
+    const char* nil = strstr(currentWord->buf, "nil");
     if (nil)
         return { nullptr, EVERYTHING_FINE };
     return { nullptr, ERROR_SYNTAX };
 }
 
-static TreeNodeResult _recReadOpenBracket(Text* input, const char* openBracket, size_t* wordNum)
+static TreeNodeResult _recReadOpenBracket(SplitString* split, char* openBracket, size_t* wordNum)
 {
-    if (!StringIsEmptyChars(openBracket + 1, '\0'))
-        return { nullptr, ERROR_SYNTAX };
+    String openBracketString = {};
 
-    const String* word = &input->words[(*wordNum)++];
-    ((char*)(word->text))[word->length] = '\0';
+    String* word = &split->words[(*wordNum)++];
 
     TreeElement_t value = TREE_POISON;
     int readChars = 0;
 
-    if (sscanf(word->text, TREE_ELEMENT_SPECIFIER "%n", &value, &readChars) != 1 ||
-        !StringIsEmptyChars(word->text + readChars, '\0'))
+    if (sscanf(word->buf, TREE_ELEMENT_SPECIFIER "%n", &value, &readChars) != 1)
         return { nullptr, ERROR_SYNTAX };
     
-    TreeNodeResult leftRes = _recRead(input, wordNum);
+    TreeNodeResult leftRes = _recRead(split, wordNum);
     RETURN_ERROR_RESULT(leftRes, nullptr);
 
-    TreeNodeResult rightRes = _recRead(input, wordNum);
+    TreeNodeResult rightRes = _recRead(split, wordNum);
     RETURN_ERROR_RESULT(rightRes, nullptr);
 
     TreeNodeResult nodeRes = TreeNode::New(value, leftRes.value, rightRes.value);
     RETURN_ERROR_RESULT(nodeRes, nullptr);
 
-    word = &input->words[(*wordNum)++];
-    ((char*)(word->text))[word->length] = '\0';
+    word = &split->words[(*wordNum)++];
 
-    const char* closeBracket = strchr(word->text, ')');
+    const char* closeBracket = strchr(word->buf, ')');
     if (!closeBracket)
         return { nullptr, ERROR_SYNTAX };
     
     return nodeRes;
 }
 
-
-struct StringResult
+ErrorCode Tree::StartLogging(const char* logFolder)
 {
-    const char* value;
-    ErrorCode error;
-};
+    LOG_FOLDER = logFolder;
 
-ErrorCode Tree::StartHtmlLogging()
-{
+    char HTML_FILE_PATH[MAX_PATH_LENGTH];
+    sprintf(HTML_FILE_PATH, "%s/log.html", logFolder);
+
     HTML_FILE = fopen(HTML_FILE_PATH, "w");
     MyAssertSoft(HTML_FILE, ERROR_BAD_FILE);
 
@@ -693,7 +701,7 @@ ErrorCode Tree::StartHtmlLogging()
     return EVERYTHING_FINE;
 }
 
-ErrorCode Tree::EndHtmlLogging()
+ErrorCode Tree::EndLogging()
 {
     if (HTML_FILE)
     {

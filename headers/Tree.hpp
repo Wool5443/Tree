@@ -1,10 +1,11 @@
 //! @file
 
-#ifndef TREE_HPP
-#define TREE_HPP
+#pragma once
 
+#include "String.hpp"
 #include "Utils.hpp"
-#include "TreeSettings.ini"
+#include "TreeSettings.hpp"
+
 
 struct TreeNodeResult;
 /** @struct TreeNode
@@ -20,13 +21,13 @@ struct TreeNodeResult;
 struct TreeNode
 {
     TreeElement_t value;
-    TreeNode* left;
-    TreeNode* right;
-    TreeNode* parent;
+    TreeNode*     left;
+    TreeNode*     right;
+    TreeNode*     parent;
 
     size_t id;
 
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     size_t nodeCount;
     #endif
 
@@ -98,7 +99,7 @@ struct Tree
 {
     TreeNode* root;
 
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     size_t* size;
     #endif
 
@@ -138,7 +139,7 @@ struct Tree
      */
     TreeNodeCountResult CountNodes();
 
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     /**
      * @brief Recalculates @ref TreeNode::nodeCount for every node in tree
      * 
@@ -148,14 +149,16 @@ struct Tree
     #endif
 
     /**
-     * @brief Draws a tree into @ref IMG_FOLDER using Graphviz
-     * 
+     * @brief Draws a tree using Graphviz
+     *
+     * @param [in] logFolder - where to put logs
+     *  
      * @return Error
      */
     ErrorCode Dump();
 
-    static ErrorCode StartHtmlLogging();
-    static ErrorCode EndHtmlLogging();
+    static ErrorCode StartLogging(const char* logFolder);
+    static ErrorCode EndLogging();
 
     /**
      * @brief Saves the tree in pre-order
@@ -175,5 +178,3 @@ struct Tree
      */
     ErrorCode Read(const char* readPath);
 };
-
-#endif
