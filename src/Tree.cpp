@@ -639,7 +639,7 @@ static TreeNodeResult _recRead(SplitString* split, size_t* wordsNum)
 
     char* openBracket = strchr(currentWord->buf, '(');
     if (openBracket)
-        return _recReadOpenBracket(split, openBracket, wordsNum);
+        return _recReadOpenBracket(split, wordsNum);
 
     const char* nil = strstr(currentWord->buf, "nil");
     if (nil)

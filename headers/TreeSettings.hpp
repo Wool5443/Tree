@@ -4,10 +4,10 @@
 #include <math.h>
 
 typedef double TreeElement_t;
-static const TreeElement_t TREE_POISON = INFINITY;
+static const TreeElement_t TREE_POISON = {};
 static const size_t MAX_TREE_SIZE = 1000;
 static const char*  TREE_WORD_SEPARATOR = ";";
-#define TREE_ELEMENT_SPECIFIER "%lg"
+#define TREE_ELEMENT_SPECIFIER ""
 
 static const size_t BAD_ID = 0;
 
