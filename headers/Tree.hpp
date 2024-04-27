@@ -39,6 +39,7 @@ struct TreeNode
      * @return TreeNodeResult - new node
      */
     static TreeNodeResult New(TreeElement_t value, TreeNode* left, TreeNode* right);
+    static TreeNodeResult New(TreeElement_t value);
 
     /**
      * @brief Deletes a node
