@@ -4,11 +4,11 @@
 #include "Tree.hpp"
 #include "MinMax.hpp"
 
-static const size_t MAX_PATH_LENGTH = 128;
-static const size_t MAX_COMMAND_LENGTH = 256;
+constexpr size_t MAX_PATH_LENGTH    = 128;
+constexpr size_t MAX_COMMAND_LENGTH = 256;
 
-static FILE*        HTML_FILE  = NULL;
-static const char*  LOG_FOLDER = nullptr;
+static FILE*       HTML_FILE  = NULL;
+static const char* LOG_FOLDER = nullptr;
 
 static TreeNodeResult _recCopy(TreeNode* node);
 
@@ -26,12 +26,6 @@ static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
                                              size_t curDepth, const size_t maxDepth);
 
 static ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile, size_t curDepth, const size_t maxDepth);
-
-static ErrorCode _recPrint(TreeNode* node, FILE* outFile);
-
-static TreeNodeResult _recRead(SplitString* split, size_t* wordNum);
-
-static TreeNodeResult _recReadOpenBracket(SplitString* split, size_t* wordNum);
 
 #define ERR_DUMP_RET(tree)                              \
 do                                                      \
@@ -469,12 +463,9 @@ ErrorCode Tree::Dump()
 
     fprintf(outGraphFile, "\nNODE_%p[style = \"filled\", fillcolor = " NODE_COLOR ", ",
                            this->root);
-    if (this->root->value == TREE_POISON)
-        fprintf(outGraphFile, "label = \"{Value:\\nPOISON|{<left>Left|<right>Right}}\"];\n");
-    else
-        fprintf(outGraphFile,
-        "label = \"{Value:\\n" TREE_ELEMENT_SPECIFIER "|"
-        "{<left>Left|<right>Right}}\"];\n", this->root->value);
+    fprintf(outGraphFile,
+    "label = \"{Value:\\n" TREE_ELEMENT_SPECIFIER "|"
+    "{<left>Left|<right>Right}}\"];\n", *(int*)&this->root->value);
 
     size_t MAX_DEPTH = MAX_TREE_SIZE;
     #ifndef NDEBUG
@@ -517,10 +508,7 @@ static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
 
     fprintf(outGraphFile, "NODE_%p[style = \"filled\", fillcolor = " NODE_COLOR ", ", node);
     fprintf(outGraphFile, "label = \"{Value:\\n");
-    if (node->value == TREE_POISON)
-        fprintf(outGraphFile, "POISON");
-    else
-        fprintf(outGraphFile, TREE_ELEMENT_SPECIFIER, node->value);
+    fprintf(outGraphFile, TREE_ELEMENT_SPECIFIER, *(int*)&node->value);
     fprintf(outGraphFile, "|id:\\n");
 
     if (node->id == BAD_ID)
@@ -566,120 +554,6 @@ static ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile, size_t curDep
         RETURN_ERROR(_recDrawGraph(node->right, outGraphFile, curDepth + 1, maxDepth));
     }
     return EVERYTHING_FINE;
-}
-
-ErrorCode Tree::Print(const char* outPath)
-{
-    MyAssertSoft(outPath, ERROR_NULLPTR);
-    ERR_DUMP_RET(this);
-
-    FILE* outFile = fopen(outPath, "wb");
-    MyAssertSoft(outFile, ERROR_BAD_FILE);
-
-    RETURN_ERROR(_recPrint(this->root, outFile));
-
-    fclose(outFile);
-
-    return EVERYTHING_FINE;
-}
-
-static ErrorCode _recPrint(TreeNode* node, FILE* outFile)
-{
-    if (!node)
-    {
-        fprintf(outFile, "nil%s", TREE_WORD_SEPARATOR);
-        return EVERYTHING_FINE;
-    }
-
-    fprintf(outFile, "(%s" TREE_ELEMENT_SPECIFIER "%s", TREE_WORD_SEPARATOR, node->value, TREE_WORD_SEPARATOR);
-    RETURN_ERROR(_recPrint(node->left, outFile));
-    RETURN_ERROR(_recPrint(node->right, outFile));
-    fprintf(outFile, ")%s", TREE_WORD_SEPARATOR);
-
-    return EVERYTHING_FINE;
-}
-
-ErrorCode Tree::Read(const char* readPath)
-{
-    MyAssertSoft(readPath, ERROR_NULLPTR);
-
-    FILE* readFile = fopen(readPath, "rb");
-    if (!readFile) return ERROR_BAD_FILE;
-
-    size_t fileSize = GetFileSize(readPath);
-    char*  buffer   = (char*)calloc(fileSize + 1, 1);
-    if (!buffer)
-    {
-        fclose(readFile);
-        return ERROR_NO_MEMORY;
-    }
-
-    if (fread(buffer, 1, fileSize, readFile) != fileSize)
-    {
-        fclose(readFile);
-        free(buffer);
-        return ERROR_BAD_FILE;
-    }
-
-    String string = {};
-    string.Create(buffer, fileSize);
-
-    SplitStringResult splitRes = string.Split(TREE_WORD_SEPARATOR);
-    RETURN_ERROR(splitRes.error);
-
-    size_t wordNum = 0;
-
-    TreeNodeResult rootRes = _recRead(&splitRes.value, &wordNum);
-
-    RETURN_ERROR(rootRes.error);
-
-    return this->Init(rootRes.value);
-}
-
-static TreeNodeResult _recRead(SplitString* split, size_t* wordsNum)
-{
-    MyAssertSoftResult(split, nullptr, ERROR_NULLPTR);
-
-    String* currentWord = &split->words[(*wordsNum)++];
-
-    char* openBracket = strchr(currentWord->buf, '(');
-    if (openBracket)
-        return _recReadOpenBracket(split, wordsNum);
-
-    const char* nil = strstr(currentWord->buf, "nil");
-    if (nil)
-        return { nullptr, EVERYTHING_FINE };
-    return { nullptr, ERROR_SYNTAX };
-}
-
-static TreeNodeResult _recReadOpenBracket(SplitString* split, size_t* wordNum)
-{
-    String openBracketString = {};
-
-    String* word = &split->words[(*wordNum)++];
-
-    TreeElement_t value = TREE_POISON;
-    int readChars = 0;
-
-    if (sscanf(word->buf, TREE_ELEMENT_SPECIFIER "%n", &value, &readChars) != 1)
-        return { nullptr, ERROR_SYNTAX };
-    
-    TreeNodeResult leftRes = _recRead(split, wordNum);
-    RETURN_ERROR_RESULT(leftRes, nullptr);
-
-    TreeNodeResult rightRes = _recRead(split, wordNum);
-    RETURN_ERROR_RESULT(rightRes, nullptr);
-
-    TreeNodeResult nodeRes = TreeNode::New(value, leftRes.value, rightRes.value);
-    RETURN_ERROR_RESULT(nodeRes, nullptr);
-
-    word = &split->words[(*wordNum)++];
-
-    const char* closeBracket = strchr(word->buf, ')');
-    if (!closeBracket)
-        return { nullptr, ERROR_SYNTAX };
-    
-    return nodeRes;
 }
 
 ErrorCode Tree::StartLogging(const char* logFolder)
