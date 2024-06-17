@@ -163,10 +163,12 @@ ErrorCode TreeNode::SetLeft(TreeNode* left)
 {
     MyAssertSoft(left, ERROR_NULLPTR);
 
-    this->left = left;
     #ifndef NDEBUG
     this->nodeCount += left->nodeCount;
+    if (this->left)
+        this->nodeCount -= this->left->nodeCount;
     #endif
+    this->left = left;
     left->parent = this;
 
     #ifndef NDEBUG
@@ -176,14 +178,17 @@ ErrorCode TreeNode::SetLeft(TreeNode* left)
 
     return EVERYTHING_FINE;
 }
+
 ErrorCode TreeNode::SetRight(TreeNode* right)
 {
     MyAssertSoft(right, ERROR_NULLPTR);
 
-    this->right = right;
     #ifndef NDEBUG
     this->nodeCount += right->nodeCount;
+    if (this->right)
+        this->nodeCount -= this->right->nodeCount;
     #endif
+    this->right = right;
     right->parent = this;
 
     #ifndef NDEBUG
