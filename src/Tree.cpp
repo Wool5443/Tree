@@ -684,6 +684,8 @@ static TreeNodeResult _recReadOpenBracket(SplitString* split, size_t* wordNum)
 
 ErrorCode Tree::StartLogging(const char* logFolder)
 {
+    MyAssertSoft(logFolder, ERROR_NULLPTR);
+
     LOG_FOLDER = logFolder;
 
     char HTML_FILE_PATH[MAX_PATH_LENGTH];
