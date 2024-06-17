@@ -6,7 +6,18 @@
 #include "Utils.hpp"
 #include "TreeSettings.hpp"
 
+struct TreeNodeResult;
 
+/** @struct TreeNode
+ * @brief A binary tree node containing value and ptrs to children
+ * 
+ * @var TreeNode::value - TreeElemen_t value
+ * @var TreeNode::left - TreeNode* left
+ * @var TreeNode::right - TreeNode* right
+ * @var TreeNode::parent - TreeNode* parent
+ * @var TreeNode::id - size_t id - unique id of a node, used for dumping
+ * @var TreeNode::nodeCount - number of all nodes going from the current one
+*/
 struct TreeNode
 {
     TreeElement_t value;
