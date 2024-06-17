@@ -1,14 +1,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include "DSL.hpp"
 #include "Tree.hpp"
 #include "MinMax.hpp"
 
 constexpr size_t MAX_PATH_LENGTH    = 128;
 constexpr size_t MAX_COMMAND_LENGTH = 256;
 
-static FILE*       HTML_FILE  = NULL;
-static const char* LOG_FOLDER = nullptr;
+static FILE*  HTML_FILE  = NULL;
+static String LOG_FOLDER = {};
+static String DOT_FOLDER = {};
+static String IMG_FOLDER = {};
 
 static TreeNodeResult _recCopy(TreeNode* node);
 
@@ -416,12 +419,50 @@ ErrorCode _recRecalcNodes(TreeNode* node)
 
 #define FONT_SIZE "10"
 #define FONT_NAME "\"Fira Code Bold\""
+#define NODE_COLOR_OP "\"#f18f8f\""
+#define NODE_COLOR_NUM "\"#eee7a0\""
+#define NODE_COLOR_VAR "\"#a7e989\""
 #define BACK_GROUND_COLOR "\"#de97d4\""
 #define TREE_COLOR "\"#ff7be9\""
 #define NODE_COLOR "\"#fae1f6\""
 #define NODE_FRAME_COLOR "\"#000000\""
 #define ROOT_COLOR "\"#c95b90\""
 #define FREE_HEAD_COLOR "\"#b9e793\""
+
+void PrintTreeElement(FILE* file, TreeElement* treeEl)
+{
+    switch (treeEl->type)
+    {
+    case OPERATION_TYPE:
+        switch (treeEl->value.operation)
+        {
+
+#define DEF_FUNC(name, priority, hasOneArg, string, ...)      \
+case name:                                                    \
+    fprintf(file, "op: %s", string);                          \
+    break;
+
+#include "Functions.hpp"
+
+#undef DEF_FUNC
+
+            default:
+                fprintf(file, "ERROR VAL");
+                break;
+
+        }
+        break;
+    case NUMBER_TYPE:
+        fprintf(file, "num: %lg", treeEl->value.number);
+        break;
+    case NAME_TYPE:
+        fprintf(file, "var: %s", treeEl->value.name.buf);
+        break;
+    default:
+        fprintf(stderr, "ERROR ELEMENT\n");
+        break;
+    }
+}
 
 ErrorCode Tree::Dump()
 {
@@ -441,7 +482,7 @@ ErrorCode Tree::Dump()
         DUMP_ITERATION);
 
     char outGraphPath[MAX_PATH_LENGTH] = "";
-    sprintf(outGraphPath, "%s/dot/Iteration%zu.dot", LOG_FOLDER, DUMP_ITERATION);
+    sprintf(outGraphPath, "%s/Iteration%zu.dot", DOT_FOLDER.buf, DUMP_ITERATION);
 
     FILE* outGraphFile = fopen(outGraphPath, "w");
     MyAssertSoft(outGraphFile, ERROR_BAD_FILE);
@@ -451,29 +492,43 @@ ErrorCode Tree::Dump()
     "{\n"
     "rankdir = TB;\n"
     "node[shape = record, color = " NODE_FRAME_COLOR ", fontname = " FONT_NAME ", fontsize = " FONT_SIZE "];\n"
-    "bgcolor = " BACK_GROUND_COLOR ";\n"
-    );
+    "bgcolor = " BACK_GROUND_COLOR ";\n");
 
     fprintf(outGraphFile, "TREE[rank = \"min\", style = \"filled\", fillcolor = " TREE_COLOR ", "
                           "label = \"{Tree|Error: %s|"
-                          #ifndef NDEBUG
+                          #ifdef SIZE_VERIFICATION
                           "Size: %zu|"
                           #endif
                           "<root>Root}\"];",
                           ERROR_CODE_NAMES[this->Verify()]
-                          #ifndef NDEBUG
+                          #ifdef SIZE_VERIFICATION
                           , *this->size
                           #endif
                           );
 
-    fprintf(outGraphFile, "\nNODE_%p[style = \"filled\", fillcolor = " NODE_COLOR ", ",
-                           this->root);
-    fprintf(outGraphFile,
-    "label = \"{Value:\\n" TREE_ELEMENT_SPECIFIER "|"
-    "{<left>Left|<right>Right}}\"];\n", *(int*)&this->root->value);
+    fprintf(outGraphFile, "\nNODE_%p[style = \"filled\", ", this->root);
+
+    switch (NODE_TYPE(this->root))
+    {
+        case OPERATION_TYPE:
+            fprintf(outGraphFile, "fillcolor = " NODE_COLOR_OP ", ");
+            break;
+        case NUMBER_TYPE:
+            fprintf(outGraphFile, "fillcolor = " NODE_COLOR_NUM ", ");
+            break;
+        case NAME_TYPE:
+            fprintf(outGraphFile, "fillcolor = " NODE_COLOR_VAR ", ");
+            break;
+        default:
+            return ERROR_BAD_VALUE;
+    }
+    
+    fprintf(outGraphFile, "label = \"{Value:\\n|");
+    PrintTreeElement(outGraphFile, &this->root->value);
+    fprintf(outGraphFile, "|{<left>Left|<right>Right}}\"];\n");
 
     size_t MAX_DEPTH = MAX_TREE_SIZE;
-    #ifndef NDEBUG
+    #ifdef SIZE_VERIFICATION
     MAX_DEPTH = min(*this->size, MAX_TREE_SIZE);
     #endif
 
@@ -490,11 +545,11 @@ ErrorCode Tree::Dump()
     fclose(outGraphFile);
 
     char command[MAX_COMMAND_LENGTH] = "";
-    sprintf(command, "dot %s -T png -o %s/img/Iteration%zu.png", outGraphPath, LOG_FOLDER, DUMP_ITERATION);
+    sprintf(command, "dot %s -T png -o %s/Iteration%zu.png", outGraphPath, IMG_FOLDER.buf, DUMP_ITERATION);
     system(command);
 
     if (HTML_FILE)
-        fprintf(HTML_FILE, "<img src = \"%s/img/Iteration%zu.png\"/>\n", LOG_FOLDER, DUMP_ITERATION);
+        fprintf(HTML_FILE, "<img src = \"%s/Iteration%zu.png\"/>\n", IMG_FOLDER.buf, DUMP_ITERATION);
 
     DUMP_ITERATION++;
 
@@ -511,9 +566,24 @@ static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
     if (curDepth > maxDepth)
         return EVERYTHING_FINE;
 
-    fprintf(outGraphFile, "NODE_%p[style = \"filled\", fillcolor = " NODE_COLOR ", ", node);
+    fprintf(outGraphFile, "\nNODE_%p[style = \"filled\", ", node);
+    switch (NODE_TYPE(node))
+    {
+        case OPERATION_TYPE:
+            fprintf(outGraphFile, "fillcolor = " NODE_COLOR_OP ", ");
+            break;
+        case NUMBER_TYPE:
+            fprintf(outGraphFile, "fillcolor = " NODE_COLOR_NUM ", ");
+            break;
+        case NAME_TYPE:
+            fprintf(outGraphFile, "fillcolor = " NODE_COLOR_VAR ", ");
+            break;
+        default:
+            return ERROR_BAD_VALUE;
+    }
+
     fprintf(outGraphFile, "label = \"{Value:\\n");
-    fprintf(outGraphFile, TREE_ELEMENT_SPECIFIER, *(int*)&node->value);
+    PrintTreeElement(outGraphFile, &node->value);
     fprintf(outGraphFile, "|id:\\n");
 
     if (node->id == BAD_ID)
@@ -521,7 +591,7 @@ static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
     else
         fprintf(outGraphFile, "%zu", node->id);
 
-    #ifndef NDEBUG
+    #ifdef SIZE_VERIFICATION
     fprintf(outGraphFile, "|node count:\\n%zu", node->nodeCount);
     #endif
     fprintf(outGraphFile, "|{<left>left|<right>right}}\"];\n");
@@ -563,7 +633,12 @@ static ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile, size_t curDep
 
 ErrorCode Tree::StartLogging(const char* logFolder)
 {
-    LOG_FOLDER = logFolder;
+    LOG_FOLDER.Create(logFolder);
+    DOT_FOLDER.Create(&LOG_FOLDER);
+    DOT_FOLDER.Concat("/dot");
+
+    IMG_FOLDER.Create(&LOG_FOLDER);
+    IMG_FOLDER.Concat("/img");
 
     char HTML_FILE_PATH[MAX_PATH_LENGTH];
     sprintf(HTML_FILE_PATH, "%s/log.html", logFolder);
