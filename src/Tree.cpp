@@ -25,6 +25,8 @@ static TreeNodeCountResult _recCountNodes(TreeNode* node);
 ErrorCode _recRecalcNodes(TreeNode* node);
 #endif
 
+static void _printTreeElement(FILE* file, TreeElement* treeEl);
+
 static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
                                              size_t curDepth, const size_t maxDepth);
 
@@ -429,7 +431,7 @@ ErrorCode _recRecalcNodes(TreeNode* node)
 #define ROOT_COLOR "\"#c95b90\""
 #define FREE_HEAD_COLOR "\"#b9e793\""
 
-void PrintTreeElement(FILE* file, TreeElement* treeEl)
+static void _printTreeElement(FILE* file, TreeElement* treeEl)
 {
     switch (treeEl->type)
     {
@@ -524,7 +526,7 @@ ErrorCode Tree::Dump()
     }
     
     fprintf(outGraphFile, "label = \"{Value:\\n|");
-    PrintTreeElement(outGraphFile, &this->root->value);
+    _printTreeElement(outGraphFile, &this->root->value);
     fprintf(outGraphFile, "|{<left>Left|<right>Right}}\"];\n");
 
     size_t MAX_DEPTH = MAX_TREE_SIZE;
@@ -583,7 +585,7 @@ static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
     }
 
     fprintf(outGraphFile, "label = \"{Value:\\n");
-    PrintTreeElement(outGraphFile, &node->value);
+    _printTreeElement(outGraphFile, &node->value);
     fprintf(outGraphFile, "|id:\\n");
 
     if (node->id == BAD_ID)
@@ -634,11 +636,12 @@ static ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile, size_t curDep
 ErrorCode Tree::StartLogging(const char* logFolder)
 {
     LOG_FOLDER.Create(logFolder);
+
     DOT_FOLDER.Create(&LOG_FOLDER);
-    DOT_FOLDER.Concat("/dot");
+    DOT_FOLDER.Append("/dot");
 
     IMG_FOLDER.Create(&LOG_FOLDER);
-    IMG_FOLDER.Concat("/img");
+    IMG_FOLDER.Append("/img");
 
     char HTML_FILE_PATH[MAX_PATH_LENGTH];
     sprintf(HTML_FILE_PATH, "%s/log.html", logFolder);
@@ -667,6 +670,10 @@ ErrorCode Tree::EndLogging()
         fclose(HTML_FILE);
     }
     HTML_FILE = NULL;
+
+    LOG_FOLDER.Destructor();
+    DOT_FOLDER.Destructor();
+    IMG_FOLDER.Destructor();
 
     return EVERYTHING_FINE;
 }
