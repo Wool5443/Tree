@@ -506,12 +506,12 @@ ErrorCode Tree::Dump()
 
     fprintf(outGraphFile, "TREE[rank = \"min\", style = \"filled\", fillcolor = " TREE_COLOR ", "
                           "label = \"{Tree|Error: %s|"
-                          #ifdef SIZE_VERIFICATION
+                          #ifndef NDEBUG
                           "Size: %zu|"
                           #endif
                           "<root>Root}\"];",
                           ERROR_CODE_NAMES[this->Verify()]
-                          #ifdef SIZE_VERIFICATION
+                          #ifndef NDEBUG
                           , *this->size
                           #endif
                           );
@@ -538,7 +538,7 @@ ErrorCode Tree::Dump()
     fprintf(outGraphFile, "|{<left>Left|<right>Right}}\"];\n");
 
     size_t MAX_DEPTH = MAX_TREE_SIZE;
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     MAX_DEPTH = min(*this->size, MAX_TREE_SIZE);
     #endif
 
@@ -601,7 +601,7 @@ static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
     else
         fprintf(outGraphFile, "%zu", node->id);
 
-    #ifdef SIZE_VERIFICATION
+    #ifndef NDEBUG
     fprintf(outGraphFile, "|node count:\\n%zu", node->nodeCount);
     #endif
     fprintf(outGraphFile, "|{<left>left|<right>right}}\"];\n");
