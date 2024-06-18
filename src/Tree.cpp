@@ -134,6 +134,9 @@ ErrorCode TreeNode::Delete()
         RETURN_ERROR(this->right->Delete());
     }
 
+    if (this->value.type == NAME_TYPE)
+        this->value.value.name.Destructor();
+
     this->value  = TREE_POISON;
     this->left   = nullptr;
     this->right  = nullptr;
@@ -458,7 +461,7 @@ case name:                                                    \
         fprintf(file, "num: %lg", treeEl->value.number);
         break;
     case NAME_TYPE:
-        fprintf(file, "var: %s", treeEl->value.name.buf);
+        fprintf(file, "name: %s", treeEl->value.name.buf);
         break;
     default:
         fprintf(stderr, "ERROR ELEMENT\n");
