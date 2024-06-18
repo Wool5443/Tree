@@ -135,7 +135,7 @@ ErrorCode TreeNode::Delete()
     }
 
     if (this->value.type == NAME_TYPE)
-        this->value.value.name.Destructor();
+        this->value.name.Destructor();
 
     this->value  = TREE_POISON;
     this->left   = nullptr;
@@ -439,7 +439,7 @@ static void _printTreeElement(FILE* file, TreeElement* treeEl)
     switch (treeEl->type)
     {
     case OPERATION_TYPE:
-        switch (treeEl->value.operation)
+        switch (treeEl->operation)
         {
 
 #define DEF_FUNC(name, priority, hasOneArg, string, ...)      \
@@ -458,10 +458,10 @@ case name:                                                    \
         }
         break;
     case NUMBER_TYPE:
-        fprintf(file, "num: %lg", treeEl->value.number);
+        fprintf(file, "num: %lg", treeEl->number);
         break;
     case NAME_TYPE:
-        fprintf(file, "name: %s", treeEl->value.name.buf);
+        fprintf(file, "name: %s", treeEl->name.buf);
         break;
     default:
         fprintf(stderr, "ERROR ELEMENT\n");

@@ -30,12 +30,12 @@ struct TreeElement
 {
     TreeElementType type;
     int priority;
-    union val
+    union
     {
         Operation operation;
         String name;
         double number;
-    } value;
+    };
 };
 
 typedef TreeElement TreeElement_t;
