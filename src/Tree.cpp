@@ -470,6 +470,8 @@ case name:                                                    \
         fprintf(stderr, "ERROR ELEMENT\n");
         break;
     }
+
+    return EVERYTHING_FINE;
 }
 
 ErrorCode Tree::Dump()
