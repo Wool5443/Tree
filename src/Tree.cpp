@@ -25,7 +25,7 @@ static TreeNodeCountResult _recCountNodes(TreeNode* node);
 ErrorCode _recRecalcNodes(TreeNode* node);
 #endif
 
-static void _printTreeElement(FILE* file, TreeElement* treeEl);
+static ErrorCode _printTreeElement(FILE* file, TreeElement* treeEl);
 
 static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
                                              size_t curDepth, const size_t maxDepth);
@@ -434,8 +434,11 @@ ErrorCode _recRecalcNodes(TreeNode* node)
 #define ROOT_COLOR "\"#c95b90\""
 #define FREE_HEAD_COLOR "\"#b9e793\""
 
-static void _printTreeElement(FILE* file, TreeElement* treeEl)
+static ErrorCode _printTreeElement(FILE* file, TreeElement_t* treeEl)
 {
+    MyAssertHard(file, ERROR_BAD_FILE);
+    MyAssertHard(treeEl, ERROR_NULLPTR);
+
     switch (treeEl->type)
     {
     case OPERATION_TYPE:
@@ -529,7 +532,7 @@ ErrorCode Tree::Dump()
     }
     
     fprintf(outGraphFile, "label = \"{Value:\\n|");
-    _printTreeElement(outGraphFile, &this->root->value);
+    RETURN_ERROR(_printTreeElement(outGraphFile, &this->root->value));
     fprintf(outGraphFile, "|{<left>Left|<right>Right}}\"];\n");
 
     size_t MAX_DEPTH = MAX_TREE_SIZE;
@@ -588,7 +591,7 @@ static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
     }
 
     fprintf(outGraphFile, "label = \"{Value:\\n");
-    _printTreeElement(outGraphFile, &node->value);
+    RETURN_ERROR(_printTreeElement(outGraphFile, &node->value));
     fprintf(outGraphFile, "|id:\\n");
 
     if (node->id == BAD_ID)
