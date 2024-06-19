@@ -15,7 +15,7 @@ set(SOURCES
     "String/headers/String.hpp"
     "String/headers/StringSettings.hpp"
     "String/src/String.cpp"
-    "src/main.cpp"
+    "example/main.cpp"
     "src/Tree.cpp"
     "headers/Tree.hpp"
 )

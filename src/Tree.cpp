@@ -1,41 +1,42 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "DSL.hpp"
 #include "Tree.hpp"
 #include "MinMax.hpp"
 
-constexpr size_t MAX_PATH_LENGTH    = 128;
-constexpr size_t MAX_COMMAND_LENGTH = 256;
+static const size_t MAX_PATH_LENGTH = 128;
+static const size_t MAX_COMMAND_LENGTH = 256;
 
-static FILE*  HTML_FILE  = NULL;
-static String LOG_FOLDER = {};
-static String DOT_FOLDER = {};
-static String IMG_FOLDER = {};
+static FILE*        HTML_FILE  = NULL;
+static const char*  LOG_FOLDER = nullptr;
 
 static TreeNodeResult _recCopy(TreeNode* node);
 
 #ifndef NDEBUG
-static ErrorCode _recUpdateParentNodeCount(TreeNode* node, ssize_t change);
+static Error _recUpdateParentNodeCount(TreeNode* node, ssize_t change);
 #endif
 
 static TreeNodeCountResult _recCountNodes(TreeNode* node);
 
 #ifndef NDEBUG
-ErrorCode _recRecalcNodes(TreeNode* node);
+Error _recRecalcNodes(TreeNode* node);
 #endif
 
-static ErrorCode _printTreeElement(FILE* file, TreeElement* treeEl);
-
-static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
+static Error _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
                                              size_t curDepth, const size_t maxDepth);
 
-static ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile, size_t curDepth, const size_t maxDepth);
+static Error _recDrawGraph(TreeNode* node, FILE* outGraphFile, size_t curDepth, const size_t maxDepth);
+
+static Error _recPrint(TreeNode* node, FILE* outFile);
+
+static TreeNodeResult _recRead(SplitString* split, size_t* wordNum);
+
+static TreeNodeResult _recReadOpenBracket(SplitString* split, size_t* wordNum);
 
 #define ERR_DUMP_RET(tree)                              \
 do                                                      \
 {                                                       \
-    ErrorCode _verifyError = tree->Verify();            \
+    Error _verifyError = tree->Verify();                \
     if (_verifyError)                                   \
     {                                                   \
         tree->Dump();                                   \
@@ -46,7 +47,7 @@ do                                                      \
 #define ERR_DUMP_RET_RESULT(tree, poison)               \
 do                                                      \
 {                                                       \
-    ErrorCode _verifyError = tree->Verify();            \
+    Error _verifyError = tree->Verify();                \
     if (_verifyError)                                   \
     {                                                   \
         tree->Dump();                                   \
@@ -65,7 +66,7 @@ TreeNodeResult TreeNode::New(TreeElement_t value, TreeNode* left, TreeNode* righ
 
     TreeNode* node = (TreeNode*)calloc(1, sizeof(TreeNode));
     if (!node)
-        return { NULL, ERROR_NO_MEMORY };
+        return { NULL, CREATE_ERROR(ERROR_NO_MEMORY) };
 
     node->value = value;
 
@@ -93,13 +94,13 @@ TreeNodeResult TreeNode::New(TreeElement_t value, TreeNode* left, TreeNode* righ
     node->parent = nullptr;
     node->id     = CURRENT_ID++;
 
-    return { node, EVERYTHING_FINE };
+    return { node, Error() };
 }
 
-ErrorCode TreeNode::Delete()
+Error TreeNode::Delete()
 {
     if (this->id == BAD_ID)
-        return ERROR_TREE_LOOP;
+        return CREATE_ERROR(ERROR_TREE_LOOP);
 
     this->id = BAD_ID;
 
@@ -108,13 +109,13 @@ ErrorCode TreeNode::Delete()
         if (this->parent->left == this)
         {
             if (this->parent->right == this)
-                return ERROR_TREE_LOOP;
+                return CREATE_ERROR(ERROR_TREE_LOOP);
             this->parent->left = nullptr;
         }
         else if (this->parent->right == this)
             this->parent->right = nullptr;
         else
-            return ERROR_TREE_LOOP;
+            return CREATE_ERROR(ERROR_TREE_LOOP);
 
         #ifndef NDEBUG
         _recUpdateParentNodeCount(this->parent, -(ssize_t)this->nodeCount);
@@ -124,18 +125,15 @@ ErrorCode TreeNode::Delete()
     if (this->left)
     {
         if (this->left->parent != this)
-            return ERROR_TREE_LOOP;
+            return CREATE_ERROR(ERROR_TREE_LOOP);
         RETURN_ERROR(this->left->Delete());
     }
     if (this->right)
     {
         if (this->right->parent != this)
-            return ERROR_TREE_LOOP;
+            return CREATE_ERROR(ERROR_TREE_LOOP);
         RETURN_ERROR(this->right->Delete());
     }
-
-    if (this->value.type == NAME_TYPE)
-        this->value.name.Destructor();
 
     this->value  = TREE_POISON;
     this->left   = nullptr;
@@ -148,29 +146,29 @@ ErrorCode TreeNode::Delete()
 
     free(this);
 
-    return EVERYTHING_FINE;
+    return Error();
 }
 
 TreeNodeResult TreeNode::Copy()
 {
     if (this->left && this->left->parent != this)
-        return { nullptr, ERROR_TREE_LOOP };
+        return { nullptr, CREATE_ERROR(ERROR_TREE_LOOP) };
     if (this->right && this->right->parent != this)
-        return { nullptr, ERROR_TREE_LOOP };
+        return { nullptr, CREATE_ERROR(ERROR_TREE_LOOP) };
 
     return _recCopy(this);
 }
 
-ErrorCode TreeNode::SetLeft(TreeNode* left)
+Error TreeNode::SetLeft(TreeNode* left)
 {
-    MyAssertSoft(left, ERROR_NULLPTR);
+    SoftAssert(left, ERROR_NULLPTR);
 
     #ifndef NDEBUG
     this->nodeCount += left->nodeCount;
     if (this->left)
         this->nodeCount -= this->left->nodeCount;
     #endif
-    this->left   = left;
+    this->left = left;
     left->parent = this;
 
     #ifndef NDEBUG
@@ -178,19 +176,19 @@ ErrorCode TreeNode::SetLeft(TreeNode* left)
         return _recUpdateParentNodeCount(this->parent, left->nodeCount);
     #endif
 
-    return EVERYTHING_FINE;
+    return Error();
 }
 
-ErrorCode TreeNode::SetRight(TreeNode* right)
+Error TreeNode::SetRight(TreeNode* right)
 {
-    MyAssertSoft(right, ERROR_NULLPTR);
+    SoftAssert(right, ERROR_NULLPTR);
 
     #ifndef NDEBUG
     this->nodeCount += right->nodeCount;
     if (this->right)
         this->nodeCount -= this->right->nodeCount;
     #endif
-    this->right   = right;
+    this->right = right;
     right->parent = this;
 
     #ifndef NDEBUG
@@ -198,35 +196,35 @@ ErrorCode TreeNode::SetRight(TreeNode* right)
         return _recUpdateParentNodeCount(this->parent, right->nodeCount);
     #endif
 
-    return EVERYTHING_FINE;
+    return Error();
 }
 
 static TreeNodeResult _recCopy(TreeNode* node)
 {
-    MyAssertSoftResult(node, nullptr, ERROR_NULLPTR);
+    SoftAssertResult(node, nullptr, ERROR_NULLPTR);
     if (node->id == BAD_ID)
-        return { nullptr, ERROR_TREE_LOOP };
+        return { nullptr, CREATE_ERROR(ERROR_TREE_LOOP) };
     
     size_t oldId = node->id;
     node->id = BAD_ID;
 
-    TreeNodeResult leftChild = { nullptr, EVERYTHING_FINE };
+    TreeNodeResult leftChild = { nullptr, Error() };
     if (node->left)
     {
         if (node->left->parent != node)
-            return { nullptr, ERROR_TREE_LOOP };
+            return { nullptr, CREATE_ERROR(ERROR_TREE_LOOP) };
         leftChild = _recCopy(node->left);
     }
-    RETURN_ERROR_RESULT(leftChild, nullptr);
+    RETURN_RESULT(leftChild);
 
-    TreeNodeResult rightChild = { nullptr, EVERYTHING_FINE };
+    TreeNodeResult rightChild = { nullptr, Error() };
 
     if (node->right)
     {
         if (node->right->parent != node)
         {
             leftChild.value->Delete();
-            return { nullptr, ERROR_TREE_LOOP };
+            return { nullptr, CREATE_ERROR(ERROR_TREE_LOOP) };
         }
         rightChild = _recCopy(node->right);
     }
@@ -252,11 +250,11 @@ static TreeNodeResult _recCopy(TreeNode* node)
 }
 
 #ifndef NDEBUG
-static ErrorCode _recUpdateParentNodeCount(TreeNode* node, ssize_t change)
+static Error _recUpdateParentNodeCount(TreeNode* node, ssize_t change)
 {
-    MyAssertSoft(node, ERROR_NULLPTR);
+    SoftAssert(node, ERROR_NULLPTR);
     if (node->id == BAD_ID)
-        return ERROR_TREE_LOOP;
+        return CREATE_ERROR(ERROR_TREE_LOOP);
 
     size_t oldId = node->id;
     node->id = BAD_ID;
@@ -266,29 +264,29 @@ static ErrorCode _recUpdateParentNodeCount(TreeNode* node, ssize_t change)
     if (node->parent)
     {
         if (node->parent->left != node && node->parent->right != node)
-            return ERROR_TREE_LOOP;
+            return CREATE_ERROR(ERROR_TREE_LOOP);
         RETURN_ERROR(_recUpdateParentNodeCount(node->parent, change));
     }
 
     node->id = oldId;
 
-    return EVERYTHING_FINE;
+    return Error();
 }
 #endif
 
-ErrorCode Tree::Init(TreeNode* root)
+Error Tree::Init(TreeNode* root)
 {
-    MyAssertSoft(root, ERROR_NULLPTR);
+    SoftAssert(root, ERROR_NULLPTR);
 
     this->root = root;
     #ifndef NDEBUG
     this->size = &root->nodeCount;
     #endif
 
-    return EVERYTHING_FINE;
+    return Error();
 }
 
-ErrorCode Tree::Init()
+Error Tree::Init()
 {
     TreeNodeResult rootRes = TreeNode::New(TREE_POISON, nullptr, nullptr);
     RETURN_ERROR(rootRes.error);
@@ -298,10 +296,10 @@ ErrorCode Tree::Init()
     this->size = &rootRes.value->nodeCount;
     #endif
 
-    return EVERYTHING_FINE;
+    return Error();
 }
 
-ErrorCode Tree::Destructor()
+Error Tree::Destructor()
 {
     ERR_DUMP_RET(this);
 
@@ -312,29 +310,29 @@ ErrorCode Tree::Destructor()
     this->size = nullptr;
     #endif
     
-    return EVERYTHING_FINE;
+    return Error();
 }
 
-ErrorCode Tree::Verify()
+Error Tree::Verify()
 {
     if (!this->root)
-        return ERROR_NO_ROOT;
+        return CREATE_ERROR(ERROR_NO_ROOT);
 
     if (this->root->parent)
-        return ERROR_TREE_LOOP;
+        return CREATE_ERROR(ERROR_TREE_LOOP);
 
     #ifndef NDEBUG
     if (*this->size > MAX_TREE_SIZE)
-        return ERROR_BAD_SIZE;
+        return CREATE_ERROR(ERROR_BAD_SIZE);
     
     TreeNodeCountResult sizeRes = _recCountNodes(this->root);
     RETURN_ERROR(sizeRes.error);
 
     if (sizeRes.value != *this->size)
-        return ERROR_BAD_TREE;
+        return CREATE_ERROR(ERROR_BAD_TREE);
     #endif
 
-    return EVERYTHING_FINE;
+    return Error();
 }
 
 TreeNodeCountResult Tree::CountNodes()
@@ -346,9 +344,9 @@ TreeNodeCountResult Tree::CountNodes()
 
 static TreeNodeCountResult _recCountNodes(TreeNode* node)
 {
-    MyAssertSoftResult(node, SIZET_POISON, ERROR_NULLPTR);
+    SoftAssertResult(node, SIZET_POISON, ERROR_NULLPTR);
     if (node->id == BAD_ID)
-        return { SIZET_POISON, ERROR_TREE_LOOP };
+        return { SIZET_POISON, CREATE_ERROR(ERROR_TREE_LOOP) };
 
     size_t oldId = node->id;
     node->id = BAD_ID;
@@ -360,9 +358,9 @@ static TreeNodeCountResult _recCountNodes(TreeNode* node)
     if (node->left)
     {
         if (node->left->parent != node)
-            return { SIZET_POISON, ERROR_TREE_LOOP };
+            return { SIZET_POISON, CREATE_ERROR(ERROR_TREE_LOOP) };
         countResult = _recCountNodes(node->left);
-        RETURN_ERROR_RESULT(countResult, SIZET_POISON);
+        RETURN_RESULT(countResult);
     }
 
     count += countResult.value;
@@ -370,32 +368,32 @@ static TreeNodeCountResult _recCountNodes(TreeNode* node)
     if (node->right)
     {
         if (node->right->parent != node)
-            return { SIZET_POISON, ERROR_TREE_LOOP };
+            return { SIZET_POISON, CREATE_ERROR(ERROR_TREE_LOOP) };
         countResult = _recCountNodes(node->right);
-        RETURN_ERROR_RESULT(countResult, SIZET_POISON);
+        RETURN_RESULT(countResult);
     }
 
     count += countResult.value;
 
     node->id = oldId;
 
-    return { count, EVERYTHING_FINE };
+    return { count, Error() };
 }
 
 #ifndef NDEBUG
-ErrorCode Tree::RecalculateNodes()
+Error Tree::RecalculateNodes()
 {
     ERR_DUMP_RET(this);
 
     return _recRecalcNodes(this->root);
 }
 
-ErrorCode _recRecalcNodes(TreeNode* node)
+Error _recRecalcNodes(TreeNode* node)
 {
-    MyAssertSoft(node, ERROR_NULLPTR);
+    SoftAssert(node, ERROR_NULLPTR);
 
     if (node->id == BAD_ID)
-        return ERROR_TREE_LOOP;
+        return CREATE_ERROR(ERROR_TREE_LOOP);
 
     size_t oldId = node->id;
     node->id = BAD_ID;
@@ -403,7 +401,7 @@ ErrorCode _recRecalcNodes(TreeNode* node)
     node->nodeCount = 1;
 
     if (!node->left && !node->right)
-        return EVERYTHING_FINE;
+        return Error();
     
     if (node->left)
     {
@@ -418,7 +416,7 @@ ErrorCode _recRecalcNodes(TreeNode* node)
 
     node->id = BAD_ID;
 
-    return EVERYTHING_FINE;
+    return Error();
 }
 #endif
 
@@ -641,8 +639,10 @@ static ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile, size_t curDep
     return EVERYTHING_FINE;
 }
 
-ErrorCode Tree::StartLogging(const char* logFolder)
+Error Tree::StartLogging(const char* logFolder)
 {
+    SoftAssert(logFolder, ERROR_NULLPTR);
+
     LOG_FOLDER.Create(logFolder);
 
     DOT_FOLDER.Create(&LOG_FOLDER);
@@ -655,7 +655,7 @@ ErrorCode Tree::StartLogging(const char* logFolder)
     sprintf(HTML_FILE_PATH, "%s/log.html", logFolder);
 
     HTML_FILE = fopen(HTML_FILE_PATH, "w");
-    MyAssertSoft(HTML_FILE, ERROR_BAD_FILE);
+    SoftAssert(HTML_FILE, ERROR_BAD_FILE);
 
     fprintf(HTML_FILE, 
         "<style>\n"
@@ -667,10 +667,10 @@ ErrorCode Tree::StartLogging(const char* logFolder)
         "<body>\n"
         "<div class=\"content\">");
 
-    return EVERYTHING_FINE;
+    return Error();
 }
 
-ErrorCode Tree::EndLogging()
+Error Tree::EndLogging()
 {
     if (HTML_FILE)
     {
