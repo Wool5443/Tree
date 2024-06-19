@@ -1,14 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include "DSL.hpp"
 #include "Tree.hpp"
 #include "MinMax.hpp"
-
-static const size_t MAX_PATH_LENGTH = 128;
-static const size_t MAX_COMMAND_LENGTH = 256;
-
-static FILE*        HTML_FILE  = NULL;
-static const char*  LOG_FOLDER = nullptr;
 
 static TreeNodeResult _recCopy(TreeNode* node);
 
@@ -22,16 +17,12 @@ static TreeNodeCountResult _recCountNodes(TreeNode* node);
 Error _recRecalcNodes(TreeNode* node);
 #endif
 
+static Error _printTreeElement(FILE* file, const TreeElement_t& treeEl);
+
 static Error _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
-                                             size_t curDepth, const size_t maxDepth);
+                                         size_t curDepth, const size_t maxDepth);
 
 static Error _recDrawGraph(TreeNode* node, FILE* outGraphFile, size_t curDepth, const size_t maxDepth);
-
-static Error _recPrint(TreeNode* node, FILE* outFile);
-
-static TreeNodeResult _recRead(SplitString* split, size_t* wordNum);
-
-static TreeNodeResult _recReadOpenBracket(SplitString* split, size_t* wordNum);
 
 #define ERR_DUMP_RET(tree)                              \
 do                                                      \
@@ -432,15 +423,22 @@ Error _recRecalcNodes(TreeNode* node)
 #define ROOT_COLOR "\"#c95b90\""
 #define FREE_HEAD_COLOR "\"#b9e793\""
 
-static ErrorCode _printTreeElement(FILE* file, TreeElement_t* treeEl)
-{
-    MyAssertHard(file, ERROR_BAD_FILE);
-    MyAssertHard(treeEl, ERROR_NULLPTR);
+static const size_t MAX_PATH_LENGTH = 256;
+static const size_t MAX_COMMAND_LENGTH = 640;
 
-    switch (treeEl->type)
+static FILE*  HTML_FILE  = NULL;
+static String LOG_FOLDER = {};
+static String DOT_FOLDER = {};
+static String IMG_FOLDER = {};
+
+static Error _printTreeElement(FILE* file, const TreeElement_t& treeEl)
+{
+    SoftAssert(file, ERROR_BAD_FILE);
+
+    switch (treeEl.type)
     {
     case OPERATION_TYPE:
-        switch (treeEl->operation)
+        switch (treeEl.operation)
         {
 
 #define DEF_FUNC(name, priority, hasOneArg, string, ...)      \
@@ -459,24 +457,24 @@ case name:                                                    \
         }
         break;
     case NUMBER_TYPE:
-        fprintf(file, "num: %lg", treeEl->number);
+        fprintf(file, "num: %lg", treeEl.number);
         break;
     case NAME_TYPE:
-        fprintf(file, "name: %s", treeEl->name.buf);
+        fprintf(file, "name: %s", treeEl.name.buf);
         break;
     default:
         fprintf(stderr, "ERROR ELEMENT\n");
         break;
     }
 
-    return EVERYTHING_FINE;
+    return Error();
 }
 
-ErrorCode Tree::Dump()
+Error Tree::Dump()
 {
     static size_t DUMP_ITERATION = 0;
 
-    MyAssertSoft(this->root, ERROR_NO_ROOT);
+    SoftAssert(this->root, ERROR_NO_ROOT);
 
     if (HTML_FILE)
         fprintf(HTML_FILE, 
@@ -493,7 +491,7 @@ ErrorCode Tree::Dump()
     sprintf(outGraphPath, "%s/Iteration%zu.dot", DOT_FOLDER.buf, DUMP_ITERATION);
 
     FILE* outGraphFile = fopen(outGraphPath, "w");
-    MyAssertSoft(outGraphFile, ERROR_BAD_FILE);
+    SoftAssert(outGraphFile, ERROR_BAD_FILE);
 
     fprintf(outGraphFile, 
     "digraph\n"
@@ -508,7 +506,7 @@ ErrorCode Tree::Dump()
                           "Size: %zu|"
                           #endif
                           "<root>Root}\"];",
-                          ERROR_CODE_NAMES[this->Verify()]
+                          this->Verify().GetErrorName()
                           #ifndef NDEBUG
                           , *this->size
                           #endif
@@ -528,11 +526,11 @@ ErrorCode Tree::Dump()
             fprintf(outGraphFile, "fillcolor = " NODE_COLOR_VAR ", ");
             break;
         default:
-            return ERROR_BAD_VALUE;
+            return CREATE_ERROR(ERROR_BAD_VALUE);
     }
     
     fprintf(outGraphFile, "label = \"{Value:\\n|");
-    RETURN_ERROR(_printTreeElement(outGraphFile, &this->root->value));
+    RETURN_ERROR(_printTreeElement(outGraphFile, this->root->value));
     fprintf(outGraphFile, "|{<left>Left|<right>Right}}\"];\n");
 
     size_t MAX_DEPTH = MAX_TREE_SIZE;
@@ -561,18 +559,18 @@ ErrorCode Tree::Dump()
 
     DUMP_ITERATION++;
 
-    return EVERYTHING_FINE;
+    return Error();
 }
 
-static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
+static Error _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
                                              size_t curDepth, const size_t maxDepth)
 {
-    MyAssertSoft(node, ERROR_NULLPTR);
+    SoftAssert(node, ERROR_NULLPTR);
 
     size_t nodeId = node->id;
     
     if (curDepth > maxDepth)
-        return EVERYTHING_FINE;
+        return Error();
 
     fprintf(outGraphFile, "\nNODE_%p[style = \"filled\", ", node);
     switch (NODE_TYPE(node))
@@ -587,11 +585,11 @@ static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
             fprintf(outGraphFile, "fillcolor = " NODE_COLOR_VAR ", ");
             break;
         default:
-            return ERROR_BAD_VALUE;
+            return CREATE_ERROR(CREATE_ERROR(ERROR_BAD_VALUE));
     }
 
     fprintf(outGraphFile, "label = \"{Value:\\n");
-    RETURN_ERROR(_printTreeElement(outGraphFile, &node->value));
+    RETURN_ERROR(_printTreeElement(outGraphFile, node->value));
     fprintf(outGraphFile, "|id:\\n");
 
     if (node->id == BAD_ID)
@@ -609,7 +607,7 @@ static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
     if (node->right)
         RETURN_ERROR(_recBuildCellTemplatesGraph(node->right, outGraphFile, curDepth + 1, maxDepth));
 
-    return EVERYTHING_FINE;
+    return Error();
 }
 
 #undef FONT_SIZE
@@ -620,11 +618,11 @@ static ErrorCode _recBuildCellTemplatesGraph(TreeNode* node, FILE* outGraphFile,
 #undef ROOT_COLOR
 #undef FREE_HEAD_COLOR
 
-static ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile, size_t curDepth, const size_t maxDepth)
+static Error _recDrawGraph(TreeNode* node, FILE* outGraphFile, size_t curDepth, const size_t maxDepth)
 {
-    MyAssertSoft(node, ERROR_NULLPTR);
+    SoftAssert(node, ERROR_NULLPTR);
     if (curDepth > maxDepth)
-        return EVERYTHING_FINE;
+        return Error();
 
     if (node->left)
     {
@@ -636,7 +634,7 @@ static ErrorCode _recDrawGraph(TreeNode* node, FILE* outGraphFile, size_t curDep
         fprintf(outGraphFile, "NODE_%p:right->NODE_%p;\n", node, node->right);
         RETURN_ERROR(_recDrawGraph(node->right, outGraphFile, curDepth + 1, maxDepth));
     }
-    return EVERYTHING_FINE;
+    return Error();
 }
 
 Error Tree::StartLogging(const char* logFolder)
@@ -683,5 +681,5 @@ Error Tree::EndLogging()
     DOT_FOLDER.Destructor();
     IMG_FOLDER.Destructor();
 
-    return EVERYTHING_FINE;
+    return Error();
 }
