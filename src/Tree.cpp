@@ -126,6 +126,9 @@ Error TreeNode::Delete()
         RETURN_ERROR(this->right->Delete());
     }
 
+    if (this->value.type == NAME_TYPE)
+        this->value.name.Destructor();
+
     this->value  = TREE_POISON;
     this->left   = nullptr;
     this->right  = nullptr;
