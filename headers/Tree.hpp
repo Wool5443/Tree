@@ -46,7 +46,7 @@ struct TreeNode
      * 
      * @return Error
      */
-    ErrorCode Delete();
+    Error Delete();
 
     /**
      * @brief Copies the node and returns the copy
@@ -61,7 +61,7 @@ struct TreeNode
      * @param [in] left - the left node.
      * @return Error
      */
-    ErrorCode SetLeft(TreeNode* left);
+    Error SetLeft(TreeNode* left);
     
     /**
      * @brief Sets the right node.
@@ -69,12 +69,12 @@ struct TreeNode
      * @param [in] right - the right node.
      * @return Error
      */
-    ErrorCode SetRight(TreeNode* right);
+    Error SetRight(TreeNode* right);
 };
 struct TreeNodeResult
 {
     TreeNode* value;
-    ErrorCode error;
+    Error     error;
 };
 
 /** @struct TreeNodeCountResult
@@ -86,7 +86,7 @@ struct TreeNodeResult
 struct TreeNodeCountResult
 {
     size_t value;
-    ErrorCode error;
+    Error  error;
 };
 
 /** @struct Tree
@@ -109,28 +109,28 @@ struct Tree
      * @param [in] root
      * @return Error
      */
-    ErrorCode Init(TreeNode* root);
+    Error Init(TreeNode* root);
 
     /**
      * @brief Initializes a tree with an empty root
      * 
-     * @return ErrorCode 
+     * @return Error 
      */
-    ErrorCode Init();
+    Error Init();
 
     /**
      * @brief Destroys the tree
      * 
      * @return Error
      */
-    ErrorCode Destructor();
+    Error Destructor();
 
     /**
      * @brief Checks the tree's integrity
      * 
      * @return Error
      */
-    ErrorCode Verify();
+    Error Verify();
     
     /**
      * @brief Counts nodes in the tree
@@ -145,7 +145,7 @@ struct Tree
      * 
      * @return Error
      */
-    ErrorCode RecalculateNodes();
+    Error RecalculateNodes();
     #endif
 
     /**
@@ -155,10 +155,10 @@ struct Tree
      *  
      * @return Error
      */
-    ErrorCode Dump();
+    Error Dump();
 
-    static ErrorCode StartLogging(const char* logFolder);
-    static ErrorCode EndLogging();
+    static Error StartLogging(const char* logFolder);
+    static Error EndLogging();
 
     /**
      * @brief Saves the tree in pre-order
@@ -166,7 +166,7 @@ struct Tree
      * @param [in] outPath - where to save
      * @return Error
      */
-    ErrorCode Print(const char* outPath);
+    Error Print(const char* outPath);
 
     /**
      * @brief Read the tree in pre-order
@@ -176,5 +176,5 @@ struct Tree
      * @param [in] readPath - what to read
      * @return Error
      */
-    ErrorCode Read(const char* readPath);
+    Error Read(const char* readPath);
 };
