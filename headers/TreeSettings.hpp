@@ -19,12 +19,14 @@ name,
 #undef DEF_FUNC
 };
 
-#define DEF_FUNC(name, prior, ...) \
-static const int name ## _PRIORITY = prior;
+constexpr int OPERATION_PRIORITIES[] = {
+#define DEF_FUNC(name, priority, ...) \
+priority,
 
 #include "Functions.hpp"
 
 #undef DEF_FUNC
+};
 
 struct TreeElement
 {
@@ -36,6 +38,18 @@ struct TreeElement
         String name;
         double number;
     };
+
+constexpr TreeElement()
+    : type(NUMBER_TYPE), priority(0), number(0) {}
+constexpr TreeElement(Operation operation)
+    : type(OPERATION_TYPE), priority(OPERATION_PRIORITIES[operation]),
+      operation(operation) {}
+constexpr TreeElement(String name)
+    : type(NAME_TYPE), priority(0),
+      name(name) {}
+constexpr TreeElement(double number)
+    : type(NUMBER_TYPE), priority(0),
+      number(number) {}
 };
 
 typedef TreeElement TreeElement_t;
