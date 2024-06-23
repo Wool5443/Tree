@@ -343,31 +343,29 @@ static TreeNodeCountResult _recCountNodes(TreeNode* node)
         return { SIZET_POISON, CREATE_ERROR(ERROR_TREE_LOOP) };
 
     size_t oldId = node->id;
-    node->id = BAD_ID;
+    node->id     = BAD_ID;
 
     size_t count = 1;
-
-    TreeNodeCountResult countResult = {};
 
     if (node->left)
     {
         if (node->left->parent != node)
             return { SIZET_POISON, CREATE_ERROR(ERROR_TREE_LOOP) };
-        countResult = _recCountNodes(node->left);
+        TreeNodeCountResult countResult = _recCountNodes(node->left);
         RETURN_RESULT(countResult);
+        count += countResult.value;
     }
-
-    count += countResult.value;
 
     if (node->right)
     {
         if (node->right->parent != node)
             return { SIZET_POISON, CREATE_ERROR(ERROR_TREE_LOOP) };
-        countResult = _recCountNodes(node->right);
+        TreeNodeCountResult countResult = _recCountNodes(node->right);
         RETURN_RESULT(countResult);
+
+        count += countResult.value;
     }
 
-    count += countResult.value;
 
     node->id = oldId;
 
